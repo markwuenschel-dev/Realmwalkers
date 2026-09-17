@@ -140,8 +140,17 @@ def _match_chapter(line: str) -> tuple[int | None, str | None] | None:
     return _parse_leading_number(m.group(1))
 
 
-def _is_scene_break(line: str) -> bool:
+def is_scene_break(line: str) -> bool:
+    """True when ``line`` (one line, no newline) is a scene-break divider under ``_SCENE_BREAK_RE``.
+
+    Public so every consumer that needs scene boundaries (the manuscript import below, read-through
+    anchoring in ``workers/read_through/anchors.py``) applies ONE break rule rather than a copy of it.
+    """
     return bool(_SCENE_BREAK_RE.match(line.strip()))
+
+
+# Kept for any caller of the former package-internal name; same function, no behavior change.
+_is_scene_break = is_scene_break
 
 
 def _parse_raw(text: str) -> tuple[list[_RawChapter], list[str]]:
@@ -170,7 +179,7 @@ def _parse_raw(text: str) -> tuple[list[_RawChapter], list[str]]:
             current = _RawChapter(number=header[0], title=header[1], detected=True)
             chapters.append(current)
             continue
-        if _is_scene_break(line):
+        if is_scene_break(line):
             flush_scene()
             continue
         scene_buf.append(line)

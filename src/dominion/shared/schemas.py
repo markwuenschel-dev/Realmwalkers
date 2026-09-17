@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from dominion.shared.enums import (
     ChapterKind,
@@ -2528,3 +2528,137 @@ class RepairPreviewOut(BaseModel):
 
 class IssueOverrideIn(BaseModel):
     reason: str
+
+
+# --- Read-through (ADR 0035) -------------------------------------------------------------------------
+
+
+class ReadThroughChapterIn(BaseModel):
+    label: str = Field(min_length=1, max_length=200)
+    text: str  # size limits are checked by the route so a 422 can name the offending chapter
+
+
+class ReadThroughCreateIn(BaseModel):
+    """Start a read-through. `client_request_id` is minted by the Desk per composition: re-sending the same
+    id with the same chapters returns the existing run (a lost response never pays twice); the same id with
+    different chapters is a 409."""
+
+    client_request_id: str = Field(min_length=8, max_length=100)
+    title: str | None = Field(default=None, max_length=200)
+    chapters: list[ReadThroughChapterIn]
+
+
+class ReadThroughSegmentOut(BaseModel):
+    start: int  # UTF-16 code units into the chapter snapshot text
+    end: int
+    text: str  # the exact source substring at [start, end)
+
+
+class ReadThroughAnchorOut(BaseModel):
+    chapter_id: uuid.UUID | None = None  # the snapshot chapter this anchor lives in
+    state: str  # located | ambiguous | unlocated
+    text_quoted: str  # what the model quoted, as returned
+    segments: list[ReadThroughSegmentOut] = []  # located: the one placement
+    candidates: list[list[ReadThroughSegmentOut]] = []  # ambiguous: up to 5 placements, none chosen
+    candidate_count: int = 0  # ambiguous: the true number of placements
+
+
+class ReadThroughNoteOut(BaseModel):
+    id: uuid.UUID
+    read_through_id: uuid.UUID
+    chapter_id: uuid.UUID | None = None  # None = a cross-chapter (book) note
+    position: int
+    category: str
+    priority: str
+    title: str
+    observation: str
+    recommendation: str
+    anchor_role: str
+    anchors: list[ReadThroughAnchorOut]
+    scope_chapter_ids: list[uuid.UUID]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ReadThroughChapterOut(BaseModel):
+    id: uuid.UUID
+    position: int
+    label: str
+    text: str
+    word_count: int
+    status: str
+    digest: dict[str, Any] | None = None
+    notes_dropped: int
+    notes_capped: bool
+    model_used: str | None = None
+    attempts: int
+    error: str | None = None
+
+
+class ReadThroughSummaryOut(BaseModel):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    title: str
+    status: str
+    chapters_total: int
+    chapters_done: int
+    book_pass_status: str
+    book_input_mode: str | None = None
+    error: str | None = None
+    created_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
+class ReadThroughStatusOut(BaseModel):
+    """The slim poll body — no chapter text, no notes."""
+
+    id: uuid.UUID
+    status: str
+    chapters_total: int
+    chapters_done: int
+    chapters_failed: int
+    chapters_skipped: int
+    current_label: str | None = None
+    attempts_used: int
+    attempt_allowance: int
+    tokens_charged: int
+    book_pass_status: str
+    book_input_mode: str | None = None
+    stop_requested: bool
+    error: str | None = None
+
+
+class ReadThroughOut(BaseModel):
+    id: uuid.UUID
+    book_id: uuid.UUID
+    title: str
+    status: str
+    error: str | None = None
+    created_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    deadline_at: datetime
+    settings_snapshot: dict[str, Any]
+    voice_guide_used: bool
+    attempt_allowance: int
+    attempts_used: int
+    tokens_charged: int
+    accounting_gap: bool
+    stop_requested: bool
+    book_pass_status: str
+    book_pass_error: str | None = None
+    book_input_mode: str | None = None
+    book_chapter_ids: list[uuid.UUID]
+    book_model_used: str | None = None
+    chapters: list[ReadThroughChapterOut]
+    notes: list[ReadThroughNoteOut]
+
+
+class ReadThroughNotePatchIn(BaseModel):
+    status: str  # open | done | dismissed (validated by the route)
+
+
+class ReadThroughDeleteOut(BaseModel):
+    deleted: uuid.UUID

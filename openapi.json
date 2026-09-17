@@ -9621,6 +9621,334 @@
           }
         }
       }
+    },
+    "/books/{book_id}/read-throughs": {
+      "post": {
+        "tags": [
+          "read-through"
+        ],
+        "summary": "Create Read Through",
+        "description": "Start a read-through of the supplied chapters. The text is stored exactly as sent and read in\nthe background; poll the status route. Sending the same `client_request_id` with the same chapters\nreturns the run already started. 422 names a chapter that is empty or too long; 409 when this book\nalready has a read-through running or too many are running overall.",
+        "operationId": "create_read_through_books__book_id__read_throughs_post",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadThroughCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadThroughSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "read-through"
+        ],
+        "summary": "List Read Throughs",
+        "description": "This book's read-throughs, newest first, with how many chapters each has finished.",
+        "operationId": "list_read_throughs_books__book_id__read_throughs_get",
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReadThroughSummaryOut"
+                  },
+                  "title": "Response List Read Throughs Books  Book Id  Read Throughs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/read-throughs/{read_through_id}/status": {
+      "get": {
+        "tags": [
+          "read-through"
+        ],
+        "summary": "Read Through Status",
+        "description": "Progress of one read-through: its state, chapter counts, the chapter being read, and what it\nhas spent. No chapter text or notes.",
+        "operationId": "read_through_status_read_throughs__read_through_id__status_get",
+        "parameters": [
+          {
+            "name": "read_through_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Read Through Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadThroughStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/read-throughs/{read_through_id}": {
+      "get": {
+        "tags": [
+          "read-through"
+        ],
+        "summary": "Get Read Through",
+        "description": "One read-through in full: every chapter with the text that was read, and every note. Notes that\nspan chapters come first, then each chapter's notes in chapter order.",
+        "operationId": "get_read_through_read_throughs__read_through_id__get",
+        "parameters": [
+          {
+            "name": "read_through_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Read Through Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadThroughOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "read-through"
+        ],
+        "summary": "Delete Read Through",
+        "description": "Delete a finished read-through with its chapter text and notes. 409 while it is still running.",
+        "operationId": "delete_read_through_read_throughs__read_through_id__delete",
+        "parameters": [
+          {
+            "name": "read_through_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Read Through Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadThroughDeleteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/read-throughs/{read_through_id}/stop": {
+      "post": {
+        "tags": [
+          "read-through"
+        ],
+        "summary": "Stop Read Through",
+        "description": "Stop a read-through. One that has not started stops at once and reads nothing; one that is\nreading stops after cancelling its current call (a request already sent to the model may still be\nbilled). 409 if it has already finished.",
+        "operationId": "stop_read_through_read_throughs__read_through_id__stop_post",
+        "parameters": [
+          {
+            "name": "read_through_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Read Through Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadThroughStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/read-through-notes/{note_id}": {
+      "patch": {
+        "tags": [
+          "read-through"
+        ],
+        "summary": "Update Read Through Note",
+        "description": "Mark a note open, done or dismissed.",
+        "operationId": "update_read_through_note_read_through_notes__note_id__patch",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadThroughNotePatchIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadThroughNoteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -18562,6 +18890,726 @@
         ],
         "title": "QueuedJobOut",
         "description": "A QUEUED job awaiting the drain \u2014 list order is queue position (created_at asc)."
+      },
+      "ReadThroughAnchorOut": {
+        "properties": {
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "text_quoted": {
+            "type": "string",
+            "title": "Text Quoted"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/ReadThroughSegmentOut"
+            },
+            "type": "array",
+            "title": "Segments",
+            "default": []
+          },
+          "candidates": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/ReadThroughSegmentOut"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Candidates",
+            "default": []
+          },
+          "candidate_count": {
+            "type": "integer",
+            "title": "Candidate Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "text_quoted"
+        ],
+        "title": "ReadThroughAnchorOut"
+      },
+      "ReadThroughChapterIn": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "text"
+        ],
+        "title": "ReadThroughChapterIn"
+      },
+      "ReadThroughChapterOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "word_count": {
+            "type": "integer",
+            "title": "Word Count"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          },
+          "notes_dropped": {
+            "type": "integer",
+            "title": "Notes Dropped"
+          },
+          "notes_capped": {
+            "type": "boolean",
+            "title": "Notes Capped"
+          },
+          "model_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Used"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "position",
+          "label",
+          "text",
+          "word_count",
+          "status",
+          "notes_dropped",
+          "notes_capped",
+          "attempts"
+        ],
+        "title": "ReadThroughChapterOut"
+      },
+      "ReadThroughCreateIn": {
+        "properties": {
+          "client_request_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 8,
+            "title": "Client Request Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ReadThroughChapterIn"
+            },
+            "type": "array",
+            "title": "Chapters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_request_id",
+          "chapters"
+        ],
+        "title": "ReadThroughCreateIn",
+        "description": "Start a read-through. `client_request_id` is minted by the Desk per composition: re-sending the same\nid with the same chapters returns the existing run (a lost response never pays twice); the same id with\ndifferent chapters is a 409."
+      },
+      "ReadThroughDeleteOut": {
+        "properties": {
+          "deleted": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "title": "ReadThroughDeleteOut"
+      },
+      "ReadThroughNoteOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "read_through_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Read Through Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "observation": {
+            "type": "string",
+            "title": "Observation"
+          },
+          "recommendation": {
+            "type": "string",
+            "title": "Recommendation"
+          },
+          "anchor_role": {
+            "type": "string",
+            "title": "Anchor Role"
+          },
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/ReadThroughAnchorOut"
+            },
+            "type": "array",
+            "title": "Anchors"
+          },
+          "scope_chapter_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Scope Chapter Ids"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "read_through_id",
+          "position",
+          "category",
+          "priority",
+          "title",
+          "observation",
+          "recommendation",
+          "anchor_role",
+          "anchors",
+          "scope_chapter_ids",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ReadThroughNoteOut"
+      },
+      "ReadThroughNotePatchIn": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ReadThroughNotePatchIn"
+      },
+      "ReadThroughOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "deadline_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deadline At"
+          },
+          "settings_snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings Snapshot"
+          },
+          "voice_guide_used": {
+            "type": "boolean",
+            "title": "Voice Guide Used"
+          },
+          "attempt_allowance": {
+            "type": "integer",
+            "title": "Attempt Allowance"
+          },
+          "attempts_used": {
+            "type": "integer",
+            "title": "Attempts Used"
+          },
+          "tokens_charged": {
+            "type": "integer",
+            "title": "Tokens Charged"
+          },
+          "accounting_gap": {
+            "type": "boolean",
+            "title": "Accounting Gap"
+          },
+          "stop_requested": {
+            "type": "boolean",
+            "title": "Stop Requested"
+          },
+          "book_pass_status": {
+            "type": "string",
+            "title": "Book Pass Status"
+          },
+          "book_pass_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Pass Error"
+          },
+          "book_input_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Input Mode"
+          },
+          "book_chapter_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Book Chapter Ids"
+          },
+          "book_model_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Model Used"
+          },
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ReadThroughChapterOut"
+            },
+            "type": "array",
+            "title": "Chapters"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/ReadThroughNoteOut"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "book_id",
+          "title",
+          "status",
+          "created_at",
+          "deadline_at",
+          "settings_snapshot",
+          "voice_guide_used",
+          "attempt_allowance",
+          "attempts_used",
+          "tokens_charged",
+          "accounting_gap",
+          "stop_requested",
+          "book_pass_status",
+          "book_chapter_ids",
+          "chapters",
+          "notes"
+        ],
+        "title": "ReadThroughOut"
+      },
+      "ReadThroughSegmentOut": {
+        "properties": {
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "text"
+        ],
+        "title": "ReadThroughSegmentOut"
+      },
+      "ReadThroughStatusOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "chapters_total": {
+            "type": "integer",
+            "title": "Chapters Total"
+          },
+          "chapters_done": {
+            "type": "integer",
+            "title": "Chapters Done"
+          },
+          "chapters_failed": {
+            "type": "integer",
+            "title": "Chapters Failed"
+          },
+          "chapters_skipped": {
+            "type": "integer",
+            "title": "Chapters Skipped"
+          },
+          "current_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Label"
+          },
+          "attempts_used": {
+            "type": "integer",
+            "title": "Attempts Used"
+          },
+          "attempt_allowance": {
+            "type": "integer",
+            "title": "Attempt Allowance"
+          },
+          "tokens_charged": {
+            "type": "integer",
+            "title": "Tokens Charged"
+          },
+          "book_pass_status": {
+            "type": "string",
+            "title": "Book Pass Status"
+          },
+          "book_input_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Input Mode"
+          },
+          "stop_requested": {
+            "type": "boolean",
+            "title": "Stop Requested"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "chapters_total",
+          "chapters_done",
+          "chapters_failed",
+          "chapters_skipped",
+          "attempts_used",
+          "attempt_allowance",
+          "tokens_charged",
+          "book_pass_status",
+          "stop_requested"
+        ],
+        "title": "ReadThroughStatusOut",
+        "description": "The slim poll body \u2014 no chapter text, no notes."
+      },
+      "ReadThroughSummaryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "book_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Book Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "chapters_total": {
+            "type": "integer",
+            "title": "Chapters Total"
+          },
+          "chapters_done": {
+            "type": "integer",
+            "title": "Chapters Done"
+          },
+          "book_pass_status": {
+            "type": "string",
+            "title": "Book Pass Status"
+          },
+          "book_input_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Input Mode"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "book_id",
+          "title",
+          "status",
+          "chapters_total",
+          "chapters_done",
+          "book_pass_status",
+          "created_at"
+        ],
+        "title": "ReadThroughSummaryOut"
       },
       "ReauthorIn": {
         "properties": {

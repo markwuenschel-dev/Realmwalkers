@@ -590,6 +590,61 @@ _EXTRA_DDL: tuple[str, ...] = (
     # second source of truth. Gated by the preflight above: the drop only runs over data where the stored
     # boolean and the derived value agree everywhere.
     "ALTER TABLE repair_tasks DROP COLUMN IF EXISTS requires_human_approval",
+    # ADR 0035 (read-through): pin each enum-valued column to its vocabulary. The names carry `_v1`
+    # because this catalog guard is ADD-only — a CHECK whose text changes under the SAME name is never
+    # re-applied to an already-migrated DB. To change a vocabulary: add a `_v2` block with the new list
+    # AND an `ALTER TABLE … DROP CONSTRAINT IF EXISTS …_v1`. The lists are literal on purpose, so the drift
+    # between a changed enum and a stale deployed CHECK is visible here rather than generated away.
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_read_throughs_status_v1') THEN
+           ALTER TABLE read_throughs ADD CONSTRAINT ck_read_throughs_status_v1
+             CHECK (status IN ('queued', 'running', 'stopping', 'stopped', 'succeeded', 'partial', 'failed',
+                               'interrupted'));
+         END IF;
+       END $$""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_read_throughs_book_pass_status_v1') THEN
+           ALTER TABLE read_throughs ADD CONSTRAINT ck_read_throughs_book_pass_status_v1
+             CHECK (book_pass_status IN ('pending', 'done', 'skipped', 'failed', 'not_run'));
+         END IF;
+       END $$""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_read_throughs_book_input_mode_v1') THEN
+           ALTER TABLE read_throughs ADD CONSTRAINT ck_read_throughs_book_input_mode_v1
+             CHECK (book_input_mode IS NULL OR book_input_mode IN ('full_text', 'digests'));
+         END IF;
+       END $$""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_read_through_chapters_status_v1') THEN
+           ALTER TABLE read_through_chapters ADD CONSTRAINT ck_read_through_chapters_status_v1
+             CHECK (status IN ('pending', 'running', 'done', 'failed', 'skipped'));
+         END IF;
+       END $$""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_read_through_notes_category_v1') THEN
+           ALTER TABLE read_through_notes ADD CONSTRAINT ck_read_through_notes_category_v1
+             CHECK (category IN ('structure', 'pacing', 'character', 'continuity', 'setup_payoff', 'clarity',
+                                 'other'));
+         END IF;
+       END $$""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_read_through_notes_priority_v1') THEN
+           ALTER TABLE read_through_notes ADD CONSTRAINT ck_read_through_notes_priority_v1
+             CHECK (priority IN ('high', 'medium', 'low'));
+         END IF;
+       END $$""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_read_through_notes_anchor_role_v1') THEN
+           ALTER TABLE read_through_notes ADD CONSTRAINT ck_read_through_notes_anchor_role_v1
+             CHECK (anchor_role IN ('evidence', 'location'));
+         END IF;
+       END $$""",
+    """DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_read_through_notes_status_v1') THEN
+           ALTER TABLE read_through_notes ADD CONSTRAINT ck_read_through_notes_status_v1
+             CHECK (status IN ('open', 'done', 'dismissed'));
+         END IF;
+       END $$""",
 )
 
 

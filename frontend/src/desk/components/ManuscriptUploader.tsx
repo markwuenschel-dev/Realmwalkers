@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { css } from "../css";
 import { api } from "../api/client";
+import { readFilesAsText } from "../lib/readTextFiles";
 import ManuscriptEditor from "./ManuscriptEditor";
 import type { ParsedManuscriptOut } from "../api/types";
 
@@ -20,9 +21,8 @@ export default function ManuscriptUploader({ bookId }: { bookId: string }) {
     setBusy(true);
     setError(null);
     try {
-      const files = await Promise.all(
-        Array.from(fileList).map(async (f) => ({ filename: f.name, text: await f.text() })),
-      );
+      // Unfiltered on purpose: this uploader has always sent every dropped file to the parser.
+      const files = await readFilesAsText(fileList);
       setParsed(await api.parseManuscript(bookId, files));
     } catch (e) {
       setError(e instanceof Error ? e.message : "parse failed");
