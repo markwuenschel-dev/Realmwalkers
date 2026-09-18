@@ -65,7 +65,11 @@ export function buildRunDiagnosisSummary(data: RunTelemetryOut): string {
     ? new Date(data.started_at).toLocaleString()
     : data.run_id.slice(0, 8);
   const ch =
-    data.chapter_no != null ? `Ch ${data.chapter_no}${data.title ? ` · ${data.title}` : ""}` : "";
+    data.run_kind === "read_through"
+      ? "Read-through"
+      : data.chapter_no != null
+        ? `Ch ${data.chapter_no}${data.title ? ` · ${data.title}` : ""}`
+        : "";
   lines.push(`Run telemetry · ${stamp}${ch ? ` · ${ch}` : ""}`);
   lines.push(`Run ID: ${data.run_id}`);
   lines.push("");

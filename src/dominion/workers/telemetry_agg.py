@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dominion.shared.agent_registry import STAGE_TO_SETTING
 from dominion.shared.model_pricing import pricing_for_model
 from dominion.shared.models import AgentRun, Chapter, LlmCall, ProductionRun
 from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
@@ -18,6 +19,22 @@ from dominion.workers.telemetry_cost import (
     estimate_call_cost_usd,
     estimate_calls_cost_usd,
 )
+
+# A run whose calls carry no chapter_id has nothing to label it with: `llm_calls.chapter_id` is a FK to
+# `chapters.id`, and a Read-through reads author-supplied SNAPSHOTS (ADR 0035), which have no chapter row.
+# Without this its rows render as a bare id. The mapping comes from the agent registry rather than a second
+# copy of the stage strings, so giving the Read-through agent another stage is enough to keep this true.
+READ_THROUGH_SETTING_KEY = "read_through_model"
+RUN_KIND_READ_THROUGH = "read_through"
+
+
+def run_kind_for_stages(stages: Iterable[str]) -> str | None:
+    """`"read_through"` when any stage in the run belongs to the Read-through role, else None."""
+    for stage in stages:
+        if STAGE_TO_SETTING.get(stage) == READ_THROUGH_SETTING_KEY:
+            return RUN_KIND_READ_THROUGH
+    return None
+
 
 # Canonical pipeline order for scene timeline display.
 PIPELINE_STAGE_ORDER: tuple[str, ...] = (
@@ -344,6 +361,18 @@ async def book_telemetry_rollups(
         by_run_rows: dict[uuid.UUID | None, list[Any]] = {}
         for r in run_model_rows:
             by_run_rows.setdefault(r.run_id, []).append(r)
+        # Stages come from their own small query rather than joining the group-by above: adding `stage`
+        # there would split every (run, chapter, model) total into one row per stage.
+        stage_rows = (
+            await session.execute(
+                select(LlmCall.run_id, LlmCall.stage)
+                .where(LlmCall.book_id == book_id, run_match)
+                .group_by(LlmCall.run_id, LlmCall.stage)
+            )
+        ).all()
+        stages_by_run: dict[uuid.UUID | None, list[str]] = {}
+        for r in stage_rows:
+            stages_by_run.setdefault(r.run_id, []).append(r.stage)
         for page_row in page:
             agg_rows = by_run_rows.get(page_row.run_id, [])
             cid = next((r.chapter_id for r in agg_rows if r.chapter_id is not None), None)
@@ -355,6 +384,7 @@ async def book_telemetry_rollups(
                     "chapter_id": cid,
                     "chapter_no": ch.chapter_no if ch else None,
                     "title": ch.title if ch else None,
+                    "run_kind": run_kind_for_stages(stages_by_run.get(page_row.run_id, ())),
                     **totals_from_model_rows(agg_rows),
                 }
             )

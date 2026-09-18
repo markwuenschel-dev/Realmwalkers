@@ -36,7 +36,7 @@ PROVIDER_TIERS: dict[str, dict[str, str]] = {
         "opus": "gemini-3.1-pro-preview",
     },
     "xai": {
-        "opus": "grok-4.3",
+        "opus": "grok-4.6",
     },
 }
 

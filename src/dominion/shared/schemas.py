@@ -882,13 +882,16 @@ class ChapterRollupOut(TelemetryTotals):
 
 class RunRollupOut(TelemetryTotals):
     """One derive run's totals (all calls sharing a run_id), for the per-run history table. `started_at`
-    is the run's earliest call; `chapter_no`/`title` label which chapter the run derived."""
+    is the run's earliest call; `chapter_no`/`title` label which chapter the run derived. `run_kind` is
+    `"read_through"` for a Read-through (ADR 0035) and None otherwise — those calls carry no chapter, so
+    without it the row has nothing but an id to show."""
 
     run_id: uuid.UUID | None = None
     started_at: datetime | None = None
     chapter_id: uuid.UUID | None = None
     chapter_no: int | None = None
     title: str | None = None
+    run_kind: str | None = None
 
 
 class ProductionRunRollupOut(TelemetryTotals):
@@ -981,13 +984,15 @@ class LlmCallListOut(BaseModel):
 
 
 class RunTelemetryOut(BaseModel):
-    """Full drill-down for one telemetry run (all calls sharing a run_id)."""
+    """Full drill-down for one telemetry run (all calls sharing a run_id). `run_kind` matches
+    `RunRollupOut.run_kind`: `"read_through"` for a Read-through (ADR 0035), else None."""
 
     run_id: uuid.UUID
     started_at: datetime | None = None
     chapter_id: uuid.UUID | None = None
     chapter_no: int | None = None
     title: str | None = None
+    run_kind: str | None = None
     totals: TelemetryTotals = TelemetryTotals()
     by_stage: list[TelemetryGroupOut] = []
     by_model: list[TelemetryGroupOut] = []

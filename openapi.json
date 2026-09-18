@@ -20798,11 +20798,22 @@
               }
             ],
             "title": "Title"
+          },
+          "run_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Kind"
           }
         },
         "type": "object",
         "title": "RunRollupOut",
-        "description": "One derive run's totals (all calls sharing a run_id), for the per-run history table. `started_at`\nis the run's earliest call; `chapter_no`/`title` label which chapter the run derived."
+        "description": "One derive run's totals (all calls sharing a run_id), for the per-run history table. `started_at`\nis the run's earliest call; `chapter_no`/`title` label which chapter the run derived. `run_kind` is\n`\"read_through\"` for a Read-through (ADR 0035) and None otherwise \u2014 those calls carry no chapter, so\nwithout it the row has nothing but an id to show."
       },
       "RunStartIn": {
         "properties": {
@@ -20969,6 +20980,17 @@
             ],
             "title": "Title"
           },
+          "run_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Kind"
+          },
           "totals": {
             "$ref": "#/components/schemas/TelemetryTotals",
             "default": {
@@ -21036,7 +21058,7 @@
           "run_id"
         ],
         "title": "RunTelemetryOut",
-        "description": "Full drill-down for one telemetry run (all calls sharing a run_id)."
+        "description": "Full drill-down for one telemetry run (all calls sharing a run_id). `run_kind` matches\n`RunRollupOut.run_kind`: `\"read_through\"` for a Read-through (ADR 0035), else None."
       },
       "SceneDecisionOut": {
         "properties": {

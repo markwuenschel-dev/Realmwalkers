@@ -44,7 +44,24 @@ _MODEL_PRICING: dict[str, ModelPricing] = {
     # the model table stays internally complete.
     "gemini-3.5-flash": ModelPricing(input=0.30, output=2.50, cache_write=0.03, cache_read=0.03),
     "gemini-3.1-pro-preview": ModelPricing(input=1.25, output=10.0, cache_write=0.25, cache_read=0.25),
+    # OpenAI rates supplied by the owner on 2026-09-18, STANDARD tier. OpenAI charges a second, higher
+    # tier above a 272k-token context; nothing here can reach it — the largest configured context budget
+    # is `scene_packet_context_window_budget` (180k), and `tests/test_model_pricing.py` fails if any
+    # budget setting crosses the threshold, so this table cannot silently under-price a long call.
+    # Until 2026-09-18 every one of these fell through to the claude-sonnet-4 default below, which
+    # over-stated gpt-5.6-luna — the default model for a dozen roles — by roughly fifteen times.
+    "gpt-6-astra": ModelPricing(input=10.0, output=50.0, cache_write=12.50, cache_read=1.00),
+    "gpt-5.6-sol": ModelPricing(input=4.0, output=20.0, cache_write=5.00, cache_read=0.40),
+    "gpt-5.6-terra": ModelPricing(input=2.0, output=12.0, cache_write=2.50, cache_read=0.20),
+    "gpt-5.6-luna": ModelPricing(input=0.20, output=1.20, cache_write=0.25, cache_read=0.02),
+    # Grok 4.6 (flagship), owner-supplied 2026-09-18: $2.00 in, $6.00 out, $0.50 cached input. xAI
+    # publishes no separate cache-WRITE rate, so it is priced at the input rate — an assumption, and the
+    # only one in this table. It moves no number today: no grok row exists in telemetry.
+    "grok-4.6": ModelPricing(input=2.0, output=6.0, cache_write=2.0, cache_read=0.50),
 }
+
+# OpenAI's higher price tier starts above this context size. See the note above `gpt-6-astra`.
+OPENAI_LONG_CONTEXT_THRESHOLD_TOKENS = 272_000
 
 
 def pricing_for_model(model: str) -> ModelPricing:
