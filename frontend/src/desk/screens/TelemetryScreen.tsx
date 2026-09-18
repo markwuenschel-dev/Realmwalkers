@@ -34,8 +34,14 @@ import {
 } from "../components/telemetry/telemetryFilters";
 
 function fmtRun(r: RunRollupOut): string {
+  // A Read-through (ADR 0035) reads chapters the author supplies, so its calls carry no chapter and the
+  // row would otherwise be a bare id. `run_kind` comes from the server, which derives it from the stages.
   const label =
-    r.chapter_no != null ? `Ch ${r.chapter_no}` : (r.title ?? r.run_id?.slice(0, 8) ?? "—");
+    r.run_kind === "read_through"
+      ? "Read-through"
+      : r.chapter_no != null
+        ? `Ch ${r.chapter_no}`
+        : (r.title ?? r.run_id?.slice(0, 8) ?? "—");
   if (!r.started_at) return `${label} · (legacy)`;
   const d = new Date(r.started_at);
   const stamp = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
@@ -359,7 +365,9 @@ export default function TelemetryScreen() {
           />
           <TotalsStrip t={data.totals} />
 
-          {latestRun && latestRun.scenes.length > 0 && (
+          {/* Scene-less runs (a Read-through, ADR 0035) bucket under scene_no = null; drawing that as
+              "Sc—" reads as a scene that went wrong. Their totals stay in By run, By stage and By model. */}
+          {latestRun && latestRun.scenes.some((s) => s.scene_no != null) && (
             <Panel inset pad="14px 16px" eyebrow="By scene · latest run">
               <TotalsTable<SceneTelemetryOut>
                 label="Scene"

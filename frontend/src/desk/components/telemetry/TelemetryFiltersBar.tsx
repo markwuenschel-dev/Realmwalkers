@@ -229,14 +229,20 @@ export function TelemetryFiltersBar({
                   .filter((r) => r.run_id)
                   .map((r) => ({
                     value: r.run_id!,
-                    label: r.started_at
-                      ? new Date(r.started_at).toLocaleString([], {
-                          month: "numeric",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : r.run_id!.slice(0, 8),
+                    label: [
+                      r.started_at
+                        ? new Date(r.started_at).toLocaleString([], {
+                            month: "numeric",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : r.run_id!.slice(0, 8),
+                      // Same reason as fmtRun: a Read-through has no chapter to name it by.
+                      r.run_kind === "read_through" ? "Read-through" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · "),
                   })),
               ]}
             />

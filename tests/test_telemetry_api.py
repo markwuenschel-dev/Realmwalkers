@@ -35,7 +35,7 @@ from dominion.workers.telemetry_draft_problems import detect_draft_not_ready
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 
 # RunRollupOut/ChapterRollupOut decoration fields; excluding them leaves exactly the TelemetryTotals.
-_RUN_FIELDS = {"run_id", "started_at", "chapter_id", "chapter_no", "title"}
+_RUN_FIELDS = {"run_id", "started_at", "chapter_id", "chapter_no", "title", "run_kind"}
 _CHAPTER_FIELDS = {"chapter_id", "chapter_no", "title"}
 
 
@@ -349,3 +349,48 @@ async def test_resolve_links_matches_batched_links_for_calls(db_factory):
         assert ch2_links.scene_packet_id == sp2.id and ch2_links.scene_id is None and ch2_links.job_id is None
         none_links = by_pair[(None, None)]  # the seed's summary call: no chapter, no scene
         assert none_links.scene_packet_id is None and none_links.scene_id is None and none_links.job_id is None
+
+
+async def test_read_through_run_is_labelled_and_stays_out_of_by_chapter(db_factory):
+    """A Read-through (ADR 0035) reads author-supplied snapshots, so its calls carry no chapter_id — the
+    column is a FK to `chapters.id` and a snapshot has no chapter row. The run must therefore be labelled
+    by its stages (`run_kind`), stay out of the per-chapter rollup, and still count in the book totals."""
+    async with db_factory() as s:
+        book, ch1, _ch2, _run1, _run2 = await _seed(s)
+        rt_run = uuid.uuid4()
+        rt_calls = [
+            _call(
+                book.id,
+                run_id=rt_run,
+                stage=stage,
+                model="gpt-5.6-luna",
+                minute=30 + i,
+                input_tokens=900,
+                output_tokens=120,
+            )
+            for i, stage in enumerate(("read_through_chapter", "read_through_book"))
+        ]
+        s.add_all(rt_calls)
+        await s.flush()
+
+        out = await book_telemetry(book.id, s, limit=10, offset=0)
+
+        by_run = {r.run_id: r for r in out.by_run}
+        assert by_run[rt_run].run_kind == "read_through"
+        assert by_run[rt_run].chapter_id is None and by_run[rt_run].title is None
+        # Every other run keeps run_kind None — the label is not sprayed across the table.
+        assert all(r.run_kind is None for rid, r in by_run.items() if rid != rt_run)
+        # Spend still lands in the book totals and in by_stage, and never in by_chapter.
+        assert out.totals.calls == by_run[rt_run].calls + sum(r.calls for rid, r in by_run.items() if rid != rt_run)
+        assert {"read_through_chapter", "read_through_book"} <= {g.key for g in out.by_stage}
+        # by_chapter counts only the rows that carry a chapter, so the read-through's two never enter it.
+        with_chapter = [c for c in await _book_rows(s, book.id) if c.chapter_id is not None]
+        assert sum(r.calls for r in out.by_chapter) == len(with_chapter)
+
+        drill = await run_telemetry(rt_run, s)
+        assert drill.run_kind == "read_through"
+        assert drill.chapter_no is None and drill.title is None
+        assert [sc.scene_no for sc in drill.scenes] == [None]
+
+        # A run of ordinary pipeline calls is not labelled.
+        assert (await run_telemetry(_run1, s)).run_kind is None

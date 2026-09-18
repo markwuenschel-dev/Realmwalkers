@@ -8256,7 +8256,9 @@ export interface components {
     /**
      * RunRollupOut
      * @description One derive run's totals (all calls sharing a run_id), for the per-run history table. `started_at`
-     *     is the run's earliest call; `chapter_no`/`title` label which chapter the run derived.
+     *     is the run's earliest call; `chapter_no`/`title` label which chapter the run derived. `run_kind` is
+     *     `"read_through"` for a Read-through (ADR 0035) and None otherwise — those calls carry no chapter, so
+     *     without it the row has nothing but an id to show.
      */
     RunRollupOut: {
       /**
@@ -8331,6 +8333,8 @@ export interface components {
       chapter_no?: number | null;
       /** Title */
       title?: string | null;
+      /** Run Kind */
+      run_kind?: string | null;
     };
     /**
      * RunStartIn
@@ -8386,7 +8390,8 @@ export interface components {
     };
     /**
      * RunTelemetryOut
-     * @description Full drill-down for one telemetry run (all calls sharing a run_id).
+     * @description Full drill-down for one telemetry run (all calls sharing a run_id). `run_kind` matches
+     *     `RunRollupOut.run_kind`: `"read_through"` for a Read-through (ADR 0035), else None.
      */
     RunTelemetryOut: {
       /**
@@ -8402,6 +8407,8 @@ export interface components {
       chapter_no?: number | null;
       /** Title */
       title?: string | null;
+      /** Run Kind */
+      run_kind?: string | null;
       /**
        * @default {
        *       "calls": 0,
