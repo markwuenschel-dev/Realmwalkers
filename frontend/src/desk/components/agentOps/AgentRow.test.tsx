@@ -11,7 +11,7 @@ const PROVIDER_TIERS: Record<string, Record<string, string>> = {
   anthropic: { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-5", opus: "claude-opus-4-8" },
   openai: { haiku: "gpt-5.6-luna", sonnet: "gpt-5.6-terra", opus: "gpt-5.6-sol" },
   google: { sonnet: "gemini-3.5-flash", opus: "gemini-3.1-pro-preview" },
-  xai: { opus: "grok-4.3" },
+  xai: { opus: "grok-4.6" },
 };
 
 function agent(over: Partial<AgentOpsAgentOut> = {}): AgentOpsAgentOut {
@@ -173,7 +173,7 @@ describe("AgentRow flat model picker", () => {
         policy: {
           ...agent().policy,
           fallback_tier: "opus",
-          fallback_model: "grok-4.3",
+          fallback_model: "grok-4.6",
           fallback_provider: "xai",
         },
       }),

@@ -33,7 +33,7 @@ const MODEL_LABEL: Record<string, string> = {
   "gpt-5.6-sol": "GPT 5.6 Sol",
   "gemini-3.5-flash": "Gemini Flash",
   "gemini-3.1-pro-preview": "Gemini Pro",
-  "grok-4.3": "Grok",
+  "grok-4.6": "Grok",
 };
 
 interface ModelOption {
