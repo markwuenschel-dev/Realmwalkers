@@ -569,7 +569,9 @@ describe("NotesScreen · results", () => {
 
   it("reports a suggestion failure on the note instead of silently doing nothing", async () => {
     apiMock.suggestProseForNote.mockRejectedValue(
-      new ApiError(503, "None of the author's standards could be loaded"),
+      new ApiError(503, "Service Unavailable", "", {
+        detail: "None of the author's standards could be loaded",
+      }),
     );
     render(<NotesScreen />);
     const card = (await screen.findByText("The lantern never pays off")).closest("article");
