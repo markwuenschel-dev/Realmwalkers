@@ -31,17 +31,40 @@ class ModelPricing:
     cache_read: float
 
 
+# This table is a SUPERSET of the live catalog (`PROVIDER_TIERS`), on purpose. Costs are computed at
+# READ time from the model id stored on each `llm_calls` row, so a model retired from the picker must
+# keep its entry forever or its historical spend silently re-prices at the fallback rate. Entries below
+# marked "retired from the catalog" exist only to keep old rows honest — do not delete them.
 _MODEL_PRICING: dict[str, ModelPricing] = {
+    # Opus 5 / Opus 4.8 share one rate ($5/$25); `claude-opus-latest` is the floating alias and resolves
+    # to the Opus 5 generation today. Keyed separately from "claude-opus-4" because the substring match
+    # ("claude-opus-4" in id) does not catch either "claude-opus-5" or "claude-opus-latest".
+    "claude-opus-latest": ModelPricing(input=5.0, output=25.0, cache_write=6.25, cache_read=0.50),
+    "claude-opus-5": ModelPricing(input=5.0, output=25.0, cache_write=6.25, cache_read=0.50),
+    "claude-opus-4-8": ModelPricing(input=5.0, output=25.0, cache_write=6.25, cache_read=0.50),
+    # Opus 4.7 and older still bill at the pre-4.8 flagship rate. Longest-prefix matching puts the
+    # "claude-opus-4-8" entry above ahead of this one, so 4.8 is not caught here.
     "claude-opus-4": ModelPricing(input=15.0, output=75.0, cache_write=18.75, cache_read=1.50),
     # Standard Sonnet 5 rates ($3/$15); intro pricing ($2/$10) runs through 2026-08-31, so estimate
     # at the durable standard rate. Keyed separately from claude-sonnet-4 because the prefix match
     # ("claude-sonnet-4" in id) does not catch "claude-sonnet-5".
     "claude-sonnet-5": ModelPricing(input=3.0, output=15.0, cache_write=3.75, cache_read=0.30),
     "claude-sonnet-4": ModelPricing(input=3.0, output=15.0, cache_write=3.75, cache_read=0.30),
+    # Retired from the catalog 2026-09-20. Kept deliberately: this book's telemetry already holds 59
+    # claude-haiku-4-5 calls, and deleting this entry would re-price every one of them at the fallback.
     "claude-haiku-4": ModelPricing(input=0.80, output=4.0, cache_write=1.0, cache_read=0.08),
-    # Gemini 3.5 Flash / 3.1 Pro Preview standard paid-tier text pricing from Google's Gemini Developer API pricing
-    # page. The panel's chapter estimates only consume input/output today, but cache fields are filled so
-    # the model table stays internally complete.
+    # Gemini standard paid-tier text pricing from Google's Gemini Developer API pricing page. The panel's
+    # chapter estimates only consume input/output today, but cache fields are filled so the model table
+    # stays internally complete. Google bills context caching as a read rate plus per-hour storage rather
+    # than a write rate, so cache_write mirrors cache_read for these entries.
+    #
+    # gemini-3.8-flash: $0.75 in / $3.75 out / $0.075 cache read, verified 2026-09-20 against Google's
+    # pricing page and corroborated by three trackers. This is the INTRODUCTORY rate and it runs only
+    # through 2026-12-31 — on 2027-01-01 both halves double to $1.50 / $7.50. Telemetry prices each row
+    # at read time, so the rate below is the one actually billed today; revisit this entry in January or
+    # every Gemini row in the book's history silently re-prices at half what it cost.
+    "gemini-3.8-flash": ModelPricing(input=0.75, output=3.75, cache_write=0.075, cache_read=0.075),
+    # Retired from the catalog 2026-09-20 (replaced by 3.8 Flash); kept so existing rows price correctly.
     "gemini-3.5-flash": ModelPricing(input=0.30, output=2.50, cache_write=0.03, cache_read=0.03),
     "gemini-3.1-pro-preview": ModelPricing(input=1.25, output=10.0, cache_write=0.25, cache_read=0.25),
     # OpenAI rates supplied by the owner on 2026-09-18, STANDARD tier. OpenAI charges a second, higher
@@ -58,6 +81,20 @@ _MODEL_PRICING: dict[str, ModelPricing] = {
     # publishes no separate cache-WRITE rate, so it is priced at the input rate — an assumption, and the
     # only one in this table. It moves no number today: no grok row exists in telemetry.
     "grok-4.6": ModelPricing(input=2.0, output=6.0, cache_write=2.0, cache_read=0.50),
+    # Kimi K3 (Moonshot flagship), owner-supplied 2026-09-20 and confirmed against the Kimi platform
+    # docs: $3.00 in, $15.00 out, $0.30 cache hit. Moonshot publishes no separate cache-WRITE rate, so
+    # it is priced at the input rate — the same assumption the grok entry above carries.
+    "kimi-k3": ModelPricing(input=3.0, output=15.0, cache_write=3.0, cache_read=0.30),
+    # Meta Muse Spark 1.3, verified 2026-09-20 against Meta Model API's pricing page. ONE model, TWO
+    # tiers, and the tier is chosen by the model id:
+    #   muse-spark-1.3              $1.25 in / $4.25 out / $0.15 cached — prompts NOT used for training.
+    #   muse-spark-1.3-contributor  $0.10 in / $0.20 out / $0.002 cached — 12.5x cheaper IN EXCHANGE FOR
+    #                               permission to train future Meta models on the prompts and completions.
+    # Anything this app sends carries manuscript prose, so the id chosen here decides whether the book
+    # becomes training data. Both are priced so switching between them is a one-word edit in the catalog.
+    # Meta publishes no cache-write rate; cache_write mirrors cache_read, as for the Gemini entries.
+    "muse-spark-1.3-contributor": ModelPricing(input=0.10, output=0.20, cache_write=0.002, cache_read=0.002),
+    "muse-spark-1.3": ModelPricing(input=1.25, output=4.25, cache_write=0.15, cache_read=0.15),
 }
 
 # OpenAI's higher price tier starts above this context size. See the note above `gpt-6-astra`.
