@@ -202,8 +202,9 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     # Multi-provider draft/QA models (workers.llm dispatches by model-id prefix: claude-* stays on the
     # existing Anthropic path; gpt-* / o*-* route to OpenAI, grok-* routes to xAI, gemini-* routes to
-    # Google's OpenAI-compatible Gemini endpoint). No new SDK dependency: all three are plain httpx
-    # POSTs, matching the embedding provider's existing convention.
+    # Google's OpenAI-compatible Gemini endpoint, kimi-* to Moonshot, muse-* to Meta's Model API). No
+    # new SDK dependency: all of them are plain httpx POSTs, matching the embedding provider's
+    # existing convention.
     #
     # Optional local LiteLLM gateway (OpenAI-compatible). When LITELLM_VIRTUAL_KEY is a real
     # sk-… virtual key, workers.llm routes chat through the gateway (stable aliases) instead of
@@ -224,9 +225,21 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY"),
     )
     xai_api_key: str | None = Field(default=None, validation_alias="XAI_API_KEY")
+    moonshot_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("MOONSHOT_API_KEY", "KIMI_API_KEY"),
+    )
+    # Meta's own docs call this MODEL_API_KEY, which is too generic to sit in a shared .env; MUSE_API_KEY
+    # is the name this app uses, with Meta's spelling accepted as an alias.
+    muse_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("MUSE_API_KEY", "META_API_KEY", "MODEL_API_KEY"),
+    )
     xai_base_url: str = "https://api.x.ai/v1"
     openai_base_url: str = "https://api.openai.com/v1"
     google_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
+    moonshot_base_url: str = "https://api.moonshot.ai/v1"
+    muse_base_url: str = "https://api.meta.ai/v1"
     rag_semantic_k: int = 12
     rag_keyword_k: int = 12
     rag_final_k: int = 8

@@ -8,10 +8,12 @@ vi.mock("../../state", () => ({
 }));
 
 const PROVIDER_TIERS: Record<string, Record<string, string>> = {
-  anthropic: { haiku: "claude-haiku-4-5", sonnet: "claude-sonnet-5", opus: "claude-opus-4-8" },
+  anthropic: { sonnet: "claude-sonnet-5", opus: "claude-opus-latest" },
   openai: { haiku: "gpt-5.6-luna", sonnet: "gpt-5.6-terra", opus: "gpt-5.6-sol" },
-  google: { sonnet: "gemini-3.5-flash", opus: "gemini-3.1-pro-preview" },
+  google: { sonnet: "gemini-3.8-flash", opus: "gemini-3.1-pro-preview" },
   xai: { opus: "grok-4.6" },
+  moonshot: { opus: "kimi-k3" },
+  meta: { opus: "muse-spark-1.3" },
 };
 
 function agent(over: Partial<AgentOpsAgentOut> = {}): AgentOpsAgentOut {
@@ -102,14 +104,13 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
 }
 
 describe("AgentRow flat model picker", () => {
-  it("shows all 9 models in one row, including Gemini Flash and Gemini Pro beside the non-Anthropic models", () => {
+  it("shows all 10 models in one row, with no Anthropic Haiku and the two newest providers last", () => {
     const { primary } = renderOpen();
     const buttons = primary
       .getAllByRole("button")
       .map((b) => b.textContent)
       .filter((text) => text !== "None");
     expect(buttons).toEqual([
-      "Haiku",
       "Sonnet",
       "Opus",
       "GPT 5.6 Luna",
@@ -118,6 +119,8 @@ describe("AgentRow flat model picker", () => {
       "Gemini Flash",
       "Gemini Pro",
       "Grok",
+      "Kimi K3",
+      "Muse Spark",
     ]);
   });
 
@@ -143,6 +146,34 @@ describe("AgentRow flat model picker", () => {
     const { onPickTier, primary } = renderOpen();
     fireEvent.click(primary.getByText("Grok"));
     expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "xai");
+  });
+
+  it("picking Kimi K3 calls onPickTier with moonshot/opus", () => {
+    const { onPickTier, primary } = renderOpen();
+    fireEvent.click(primary.getByText("Kimi K3"));
+    expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "moonshot");
+  });
+
+  it("says in the hover text that the offered Muse tier is not trained on", () => {
+    const { primary } = renderOpen();
+    expect(primary.getByText("Muse Spark").getAttribute("title")).toMatch(/not used to train/);
+  });
+
+  it("highlights an active Moonshot model with the Moonshot brand color", () => {
+    const { primary } = renderOpen({
+      agent: agent({ provider: "moonshot", tier: "opus", model: "kimi-k3" }),
+    });
+    expect(primary.getByText("Kimi K3")).toHaveStyle({ background: "#007CFF", color: "#FFFFFF" });
+  });
+
+  it("highlights an active Meta model with the Meta brand color", () => {
+    const { primary } = renderOpen({
+      agent: agent({ provider: "meta", tier: "opus", model: "muse-spark-1.3" }),
+    });
+    expect(primary.getByText("Muse Spark")).toHaveStyle({
+      background: "#0064E0",
+      color: "#FFFFFF",
+    });
   });
 
   it("highlights the active model with its brand color and white text", () => {

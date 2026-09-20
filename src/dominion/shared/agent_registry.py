@@ -12,19 +12,28 @@ from typing import Any, Literal
 from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
 
 Tier = Literal["haiku", "sonnet", "opus"]
-Provider = Literal["anthropic", "openai", "google", "xai"]
+Provider = Literal["anthropic", "openai", "google", "xai", "moonshot", "meta"]
 CostBand = Literal["low", "medium", "high"]
 SpeedBand = Literal["fast", "medium", "slow"]
 
-# Per-provider tier -> model id. Anthropic covers all three tiers; other providers fill in whichever
-# tiers they have a model for (xAI currently ships one general model, slotted at "opus").
+# Per-provider tier -> model id. Providers fill in whichever tiers they have a model for; a provider
+# that ships a single general model is slotted at "opus", because the tier names a QUALITY band, not a
+# price band (grok-4.6 costs less than claude-sonnet-5 and is still that provider's flagship).
+# `resolve_tier_for_provider` handles the gaps, so partial coverage is normal, not a defect.
 # Typed as plain str keys (not Provider/Tier) so it assigns directly into the dict[str, dict[str, str]]
 # API schemas below without invariance friction.
+#
+# Anthropic dropped its haiku slot on 2026-09-20: Haiku is not a model this book should draft or review
+# with, and leaving it in the picker only invited a cheap-but-wrong pick. Removing it costs nothing at
+# runtime — `provider_and_tier_of` still resolves any persisted "claude-haiku-*" id through its
+# substring fallback below, so existing settings and 59 historical telemetry rows keep working.
 PROVIDER_TIERS: dict[str, dict[str, str]] = {
     "anthropic": {
-        "haiku": "claude-haiku-4-5",
         "sonnet": "claude-sonnet-5",
-        "opus": "claude-opus-4-8",
+        # Floating alias, not a pinned snapshot: Anthropic moves it to each new Opus generation, so the
+        # app follows without an edit. The trade is that the model (and its price) can change under a
+        # running book — `model_pricing` carries an explicit entry so cost never falls to the default.
+        "opus": "claude-opus-latest",
     },
     "openai": {
         "haiku": "gpt-5.6-luna",
@@ -32,11 +41,22 @@ PROVIDER_TIERS: dict[str, dict[str, str]] = {
         "opus": "gpt-5.6-sol",
     },
     "google": {
-        "sonnet": "gemini-3.5-flash",
+        "sonnet": "gemini-3.8-flash",
         "opus": "gemini-3.1-pro-preview",
     },
     "xai": {
         "opus": "grok-4.6",
+    },
+    "moonshot": {
+        "opus": "kimi-k3",
+    },
+    # Standard tier, chosen deliberately on 2026-09-20. The "-contributor" id is the same model 12.5x
+    # cheaper, and pays for the discount with permission to train future Meta models on every prompt and
+    # completion sent. Everything this app sends is manuscript prose, so the discount is declined here.
+    # Both ids stay priced in `model_pricing`, so reversing this is a one-word edit — but it is a
+    # decision about the book, not a tuning knob, and it belongs to the author.
+    "meta": {
+        "opus": "muse-spark-1.3",
     },
 }
 
@@ -45,6 +65,8 @@ PROVIDER_LABELS: dict[Provider, str] = {
     "openai": "OpenAI",
     "google": "Google",
     "xai": "xAI",
+    "moonshot": "Moonshot",
+    "meta": "Meta",
 }
 
 # Legacy alias: the settings API predates multi-provider support and only ever resolved tiers
@@ -587,6 +609,12 @@ def supports_temperature(model: str | None) -> bool:
 # of the temperature allowlist above: the flagship models reject `temperature` and take effort instead.
 _ANTHROPIC_EFFORT_MODELS: frozenset[str] = frozenset(
     {
+        # The floating alias is listed explicitly: it replaced claude-opus-4-8 as the catalog's Anthropic
+        # opus on 2026-09-20, and omitting it would have silently stopped sending `effort` to the
+        # strongest model in the app. Every Opus from 4.5 up takes the param, so the alias is safe to
+        # list while it points at an Opus generation.
+        "claude-opus-latest",
+        "claude-opus-5",
         "claude-opus-4-8",
         "claude-opus-4-7",
         "claude-opus-4-6",

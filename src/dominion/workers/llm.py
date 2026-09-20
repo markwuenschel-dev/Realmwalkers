@@ -147,7 +147,7 @@ def _client() -> AsyncAnthropic:
 # support and passes a plain model string never intended to select a new provider (tests even use bare
 # placeholders like "m"), so anything NOT explicitly one of these prefixes must keep behaving exactly as
 # it did before this feature existed.
-_OPENAI_COMPATIBLE_PREFIXES: tuple[str, ...] = ("gpt-", "o1-", "o3-", "o4-", "grok-", "gemini-")
+_OPENAI_COMPATIBLE_PREFIXES: tuple[str, ...] = ("gpt-", "o1-", "o3-", "o4-", "grok-", "gemini-", "kimi-", "muse-")
 _GATEWAY_ALIASES = frozenset(
     {
         "llm-general",
@@ -207,6 +207,13 @@ def _map_model_for_gateway(model: str) -> str:
         return "grok-general"
     if low.startswith("gemini"):
         return "gemini-general"
+    # No gateway route is provisioned for Moonshot or Meta. Naming their own alias makes an
+    # un-provisioned gateway reject the call outright instead of quietly resolving to
+    # "openai-general" and drafting the book on a model nobody chose.
+    if low.startswith("kimi"):
+        return "kimi-general"
+    if low.startswith("muse"):
+        return "muse-general"
     return "openai-general"
 
 
@@ -234,10 +241,11 @@ def _is_openai_reasoning_model(model: str) -> bool:
 
 
 def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
-    """(base_url, api_key) for a non-Anthropic model. xAI and Gemini both expose OpenAI-compatible
-    chat-completions endpoints, reached by swapping base_url + key — routed by the model-id prefix
-    (`grok-*`, `gemini-*`), not a separate SDK path. No new dependency: a plain httpx POST, matching the
-    embedding provider's existing convention (workers.memory.embedding).
+    """(base_url, api_key) for a non-Anthropic model. xAI, Gemini, Moonshot and Meta all expose
+    OpenAI-compatible chat-completions endpoints, reached by swapping base_url + key — routed by the
+    model-id prefix (`grok-*`, `gemini-*`, `kimi-*`, `muse-*`), not a separate SDK path. No new
+    dependency: a plain httpx POST, matching the embedding provider's existing convention
+    (workers.memory.embedding).
 
     When LITELLM_VIRTUAL_KEY is set, all of the above collapse to the local LiteLLM gateway.
     """
@@ -258,6 +266,16 @@ def _openai_compatible_endpoint(model: str) -> tuple[str, str]:
         if not key:
             raise RuntimeError("GEMINI_API_KEY / GOOGLE_API_KEY is not set — add it to the deploy environment.")
         return settings.google_base_url, key
+    if model.startswith("kimi-"):
+        key = (settings.moonshot_api_key or "").strip()
+        if not key:
+            raise RuntimeError("MOONSHOT_API_KEY is not set — add it to the deploy environment.")
+        return settings.moonshot_base_url, key
+    if model.startswith("muse-"):
+        key = (settings.muse_api_key or "").strip()
+        if not key:
+            raise RuntimeError("MUSE_API_KEY is not set — add it to the deploy environment.")
+        return settings.muse_base_url, key
     key = (settings.openai_api_key or "").strip()
     if not key:
         raise RuntimeError("OPENAI_API_KEY is not set — add it to the deploy environment.")

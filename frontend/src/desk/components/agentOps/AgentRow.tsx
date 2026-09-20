@@ -20,20 +20,38 @@ const QUALITY_LABEL: Record<string, string> = {
 };
 
 // Brand colors for the active/selected model button. Anthropic uses the tier label (no per-model
-// override needed); OpenAI and xAI need explicit labels since raw model ids don't read well.
+// override needed); the other providers need explicit labels since raw model ids don't read well.
 const PROVIDER_COLOR: Record<string, string> = {
   anthropic: "#E67E51",
   openai: "#10A37F",
   google: "#4796E3",
   xai: "#0A0A0A",
+  moonshot: "#007CFF",
+  meta: "#0064E0",
 };
 const MODEL_LABEL: Record<string, string> = {
   "gpt-5.6-luna": "GPT 5.6 Luna",
   "gpt-5.6-terra": "GPT 5.6 Terra",
   "gpt-5.6-sol": "GPT 5.6 Sol",
-  "gemini-3.5-flash": "Gemini Flash",
+  "gemini-3.8-flash": "Gemini Flash",
   "gemini-3.1-pro-preview": "Gemini Pro",
   "grok-4.6": "Grok",
+  "kimi-k3": "Kimi K3",
+  "muse-spark-1.3": "Muse Spark",
+  "muse-spark-1.3-contributor": "Muse Spark",
+};
+// Per-model hover text, consulted before the tier hint. TIER_HINT describes a tier in the abstract
+// ("strongest / most expensive"), which misdescribes a provider whose single flagship is cheap — and
+// says nothing at all about the one choice here that has a consequence beyond price.
+// The contributor id is not in the catalog (see agent_registry.PROVIDER_TIERS) and so renders nowhere
+// today. Its warning stays here on purpose: if that id is ever put back, the caution travels with it
+// instead of having to be remembered.
+const MODEL_HINT: Record<string, string> = {
+  "kimi-k3": "Moonshot flagship · $3 / $15 per Mtok",
+  "muse-spark-1.3":
+    "$1.25 / $4.25 per Mtok — standard tier: prompts are not used to train Meta models.",
+  "muse-spark-1.3-contributor":
+    "$0.10 / $0.20 per Mtok — the discounted contributor tier. Meta may train on every prompt and completion sent, which here means your manuscript.",
 };
 
 interface ModelOption {
@@ -46,7 +64,7 @@ interface ModelOption {
 
 function modelCatalog(providerTiers: Record<string, Record<string, string>>): ModelOption[] {
   const options: ModelOption[] = [];
-  const providerOrder = ["anthropic", "openai", "google", "xai"];
+  const providerOrder = ["anthropic", "openai", "google", "xai", "moonshot", "meta"];
   const orderedProviders = [
     ...providerOrder.filter((provider) => provider in providerTiers),
     ...Object.keys(providerTiers).filter((provider) => !providerOrder.includes(provider)),
@@ -502,7 +520,7 @@ function ModelButtons({
           <button
             key={opt.model}
             disabled={disabled}
-            title={TIER_HINT[opt.tier] ?? opt.model}
+            title={MODEL_HINT[opt.model] ?? TIER_HINT[opt.tier] ?? opt.model}
             onClick={() => {
               if (!on) onPick(opt);
             }}
