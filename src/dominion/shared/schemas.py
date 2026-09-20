@@ -2665,5 +2665,42 @@ class ReadThroughNotePatchIn(BaseModel):
     status: str  # open | done | dismissed (validated by the route)
 
 
+class ReadThroughProseVariantOut(BaseModel):
+    """One piece of suggested prose, pinned to a span of the chapter snapshot.
+
+    Prefixed `ReadThrough` rather than named `ProseVariantOut` on purpose: two Pydantic classes
+    sharing a short name make FastAPI fully-qualify BOTH in the OpenAPI components, which silently
+    renames the other one and breaks whichever `types.ts` alias resolved to it.
+    """
+
+    # replace | insert_before | insert_after — what to do with `prose` relative to `anchor_quote`.
+    mode: str
+    # Verbatim text from the chapter; the server re-checks it exists before returning the variant.
+    anchor_quote: str
+    prose: str
+    why: str
+
+
+class ReadThroughProseSuggestionOut(BaseModel):
+    """The response of asking one note to show its work. Nothing here is persisted."""
+
+    suggestions: list[ReadThroughProseVariantOut]
+    # Which of the author's standards reached the model. A suggestion written without the voice guide
+    # is a different tool — a general writing assistant — so a degraded run is reported, not hidden.
+    standards_loaded: list[str]
+    standards_missing: list[str]
+    # Provenance for the canon that reached the prompt: "what was it allowed to know" is the question
+    # that separates the model inventing a detail from the canon simply being thin there.
+    canon_sources: list[str]
+    drift_scope_characters: list[str]
+    # Variants whose anchor was not in the chapter, dropped by the deterministic evidence check.
+    fabricated_dropped: int
+    # False means the suggestion succeeded but its cost never reached `llm_calls`. Never a reason to
+    # fail the request — the money was already spent — but the author should see the hole.
+    telemetry_recorded: bool
+    model: str
+    tokens_used: int
+
+
 class ReadThroughDeleteOut(BaseModel):
     deleted: uuid.UUID

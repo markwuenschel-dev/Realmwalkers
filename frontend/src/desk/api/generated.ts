@@ -3556,6 +3556,31 @@ export interface paths {
     patch: operations["update_read_through_note_read_through_notes__note_id__patch"];
     trace?: never;
   };
+  "/read-through-notes/{note_id}/prose-suggestion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Suggest Prose For Note
+     * @description Draft prose answering this note, in the author's voice and against canon. Persists nothing.
+     *
+     *     Separate from the read-through itself on purpose: the read-through refuses to write prose so its
+     *     notes stay diagnoses rather than arguments for their own fix. This is the author, having read the
+     *     note, asking one of them to show its work — so it is a distinct agent, a distinct paid call, and
+     *     it happens only on this request.
+     */
+    post: operations["suggest_prose_for_note_read_through_notes__note_id__prose_suggestion_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7698,6 +7723,48 @@ export interface components {
       chapters: components["schemas"]["ReadThroughChapterOut"][];
       /** Notes */
       notes: components["schemas"]["ReadThroughNoteOut"][];
+    };
+    /**
+     * ReadThroughProseSuggestionOut
+     * @description The response of asking one note to show its work. Nothing here is persisted.
+     */
+    ReadThroughProseSuggestionOut: {
+      /** Suggestions */
+      suggestions: components["schemas"]["ReadThroughProseVariantOut"][];
+      /** Standards Loaded */
+      standards_loaded: string[];
+      /** Standards Missing */
+      standards_missing: string[];
+      /** Canon Sources */
+      canon_sources: string[];
+      /** Drift Scope Characters */
+      drift_scope_characters: string[];
+      /** Fabricated Dropped */
+      fabricated_dropped: number;
+      /** Telemetry Recorded */
+      telemetry_recorded: boolean;
+      /** Model */
+      model: string;
+      /** Tokens Used */
+      tokens_used: number;
+    };
+    /**
+     * ReadThroughProseVariantOut
+     * @description One piece of suggested prose, pinned to a span of the chapter snapshot.
+     *
+     *     Prefixed `ReadThrough` rather than named `ProseVariantOut` on purpose: two Pydantic classes
+     *     sharing a short name make FastAPI fully-qualify BOTH in the OpenAPI components, which silently
+     *     renames the other one and breaks whichever `types.ts` alias resolved to it.
+     */
+    ReadThroughProseVariantOut: {
+      /** Mode */
+      mode: string;
+      /** Anchor Quote */
+      anchor_quote: string;
+      /** Prose */
+      prose: string;
+      /** Why */
+      why: string;
     };
     /** ReadThroughSegmentOut */
     ReadThroughSegmentOut: {
@@ -16069,6 +16136,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ReadThroughNoteOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  suggest_prose_for_note_read_through_notes__note_id__prose_suggestion_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        note_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadThroughProseSuggestionOut"];
         };
       };
       /** @description Validation Error */

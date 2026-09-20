@@ -86,6 +86,7 @@ import type {
   ReadThroughDeleteOut,
   ReadThroughNoteOut,
   ReadThroughNotePatchIn,
+  ReadThroughProseSuggestionOut,
   ReadThroughOut,
   ReadThroughStatusOut,
   ReadThroughSummaryOut,
@@ -215,6 +216,12 @@ export const api = {
     http<ReadThroughNoteOut>(`/read-through-notes/${noteId}`, {
       method: "PATCH",
       body: JSON.stringify(body),
+    }),
+  // A real paid call every time, and it persists nothing — the prose lives only in this response.
+  // 422 when the note has no anchor in the text; 503 when none of the style documents loaded.
+  suggestProseForNote: (noteId: string) =>
+    http<ReadThroughProseSuggestionOut>(`/read-through-notes/${noteId}/prose-suggestion`, {
+      method: "POST",
     }),
   // 409 unless the run is terminal.
   deleteReadThrough: (id: string) =>

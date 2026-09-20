@@ -243,7 +243,9 @@ async def test_scene_packet_author_fails_loud_when_fallback_also_unparseable(mon
 
 
 def test_honesty_maps_are_pinned():
-    assert agent_ops.QUALITY_LIVE == {"draft_model", "review_model"}
+    # prose_suggestion_model joined on 2026-09-20: `read_through/suggest.py` genuinely reads
+    # quality_temperature/quality_effort for it, so the page must report the knob as live.
+    assert agent_ops.QUALITY_LIVE == {"draft_model", "review_model", "prose_suggestion_model"}
     assert agent_ops.SEMANTIC_LIVE == {"packet_qa_model", "scene_packet_qa_model"}
     assert agent_ops.AUTO_RUN_LIVE == {"enrich_model", "review_model"}
     assert agent_ops.FALLBACK_MODE == {"review_model": "rate_limit_only", "enrich_model": "rate_limit_only"}
@@ -253,7 +255,7 @@ def test_agent_ops_rows_carry_honesty_controls():
     rows: dict[str, AgentOpsAgentOut] = {a.setting_key: agent_ops._agent_ops_row(a, None) for a in AGENTS}
     assert set(rows) == {a.setting_key for a in AGENTS}
     for key, row in rows.items():
-        assert row.controls.quality_live is (key in {"draft_model", "review_model"})
+        assert row.controls.quality_live is (key in {"draft_model", "review_model", "prose_suggestion_model"})
         assert row.controls.semantic_escalation_live is (key in {"packet_qa_model", "scene_packet_qa_model"})
         assert row.controls.auto_run_live is (key in {"enrich_model", "review_model"})
     assert rows["review_model"].controls.fallback_mode == "rate_limit_only"

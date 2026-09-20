@@ -612,3 +612,7 @@ export type ReadThroughAnchorOut = S["ReadThroughAnchorOut"];
 export type ReadThroughSegmentOut = S["ReadThroughSegmentOut"];
 export type ReadThroughNotePatchIn = S["ReadThroughNotePatchIn"];
 export type ReadThroughDeleteOut = S["ReadThroughDeleteOut"];
+// Suggested prose for one note. Nothing here is persisted: the response IS the artifact, so a
+// closed tab loses it and asking again is another paid call.
+export type ReadThroughProseSuggestionOut = S["ReadThroughProseSuggestionOut"];
+export type ReadThroughProseVariantOut = S["ReadThroughProseVariantOut"];

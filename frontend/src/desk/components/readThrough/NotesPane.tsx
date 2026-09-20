@@ -1,6 +1,10 @@
 // NotesPane — a list of read-through notes grouped by priority, with their anchors and status buttons.
 
-import type { ReadThroughAnchorOut, ReadThroughNoteOut } from "../../api/types";
+import type {
+  ReadThroughAnchorOut,
+  ReadThroughNoteOut,
+  ReadThroughProseSuggestionOut,
+} from "../../api/types";
 import { css } from "../../css";
 import { anchorHighlightChapter, anchorKey } from "../../lib/anchorSpans";
 import {
@@ -141,6 +145,54 @@ function AnchorItem({
   );
 }
 
+const MODE_LABEL: Record<string, string> = {
+  replace: "replaces",
+  insert_before: "goes before",
+  insert_after: "goes after",
+};
+
+/** Suggested prose for one note. Read-only on purpose: the snapshot is immutable and has no link to
+ *  the live chapter, so there is no "apply" this could honestly offer — the author copies it out. */
+function SuggestionPanel({ suggestion }: { suggestion: ReadThroughProseSuggestionOut }) {
+  if (suggestion.suggestions.length === 0) {
+    return (
+      <p style={css("margin:10px 0 0;font-size:12.5px;color:var(--dim)")}>
+        Nothing came back that quoted the chapter accurately
+        {suggestion.fabricated_dropped > 0
+          ? ` — ${suggestion.fabricated_dropped} attempt${suggestion.fabricated_dropped === 1 ? "" : "s"} cited text that isn't there and were dropped.`
+          : "."}
+      </p>
+    );
+  }
+  return (
+    <div
+      style={css(
+        "margin-top:10px;border-left:2px solid var(--accent);padding:8px 0 2px 10px;display:flex;flex-direction:column;gap:12px",
+      )}
+    >
+      {suggestion.suggestions.map((v, i) => (
+        <div key={`${v.mode}-${i}`}>
+          <div style={css(MONO)}>
+            {`${MODE_LABEL[v.mode] ?? v.mode} “${clip(v.anchor_quote, 60)}”`}
+          </div>
+          <p style={css(`${QUOTE};white-space:pre-wrap;margin:5px 0 0`)}>{v.prose}</p>
+          {v.why && <p style={css("margin:5px 0 0;font-size:12.5px;color:var(--dim)")}>{v.why}</p>}
+        </div>
+      ))}
+      <p style={css("margin:0;font-size:11.5px;color:var(--dim)")}>
+        {`${suggestion.model} · nothing saved — copy what you want`}
+        {suggestion.standards_missing.length > 0
+          ? ` · written without ${suggestion.standards_missing.join(", ")}`
+          : ""}
+        {suggestion.canon_sources.length > 0
+          ? ` · canon: ${suggestion.canon_sources.slice(0, 3).join("; ")}`
+          : " · no canon matched"}
+        {suggestion.telemetry_recorded ? "" : " · cost not recorded"}
+      </p>
+    </div>
+  );
+}
+
 function NoteCard({
   note,
   chapterLabel,
@@ -148,6 +200,9 @@ function NoteCard({
   activeAnchorId,
   onAnchor,
   onStatus,
+  onSuggest,
+  suggestion,
+  suggesting,
   busy,
   error,
 }: {
@@ -157,10 +212,16 @@ function NoteCard({
   activeAnchorId: string | null;
   onAnchor: (note: ReadThroughNoteOut, index: number) => void;
   onStatus: (note: ReadThroughNoteOut, status: NoteStatus) => void;
+  onSuggest: (note: ReadThroughNoteOut) => void;
+  suggestion: ReadThroughProseSuggestionOut | undefined;
+  suggesting: boolean;
   busy: boolean;
   error: string | undefined;
 }) {
   const holdsActive = note.anchors.some((_, i) => anchorKey(note.id, i) === activeAnchorId);
+  // The server refuses a note it cannot quote from, so gate the control rather than letting the
+  // author spend a call to be told no.
+  const hasAnchor = note.anchors.some((a) => a.state === "located" || a.state === "ambiguous");
   const dismissed = note.status === "dismissed";
   return (
     <article
@@ -237,7 +298,22 @@ function NoteCard({
             Reopen
           </Button>
         )}
+        {/* A real paid call, and nothing is stored — say so on the control rather than in a doc. */}
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={busy || suggesting || !hasAnchor}
+          title={
+            hasAnchor
+              ? "Write prose answering this note, in your voice and against canon. Costs a model call; nothing is saved."
+              : "This note has no anchor in the text, so there is no passage to write against."
+          }
+          onClick={() => onSuggest(note)}
+        >
+          {suggesting ? "Writing…" : "Suggest prose"}
+        </Button>
       </div>
+      {suggestion && <SuggestionPanel suggestion={suggestion} />}
       {error && <p style={css("margin:6px 0 0;font-size:12.5px;color:var(--bad)")}>{error}</p>}
     </article>
   );
@@ -250,6 +326,9 @@ export default function NotesPane({
   activeAnchorId,
   onAnchor,
   onStatus,
+  onSuggest,
+  suggestions,
+  suggesting,
   busy,
   errors,
   empty,
@@ -261,6 +340,9 @@ export default function NotesPane({
   activeAnchorId: string | null;
   onAnchor: (note: ReadThroughNoteOut, index: number) => void;
   onStatus: (note: ReadThroughNoteOut, status: NoteStatus) => void;
+  onSuggest: (note: ReadThroughNoteOut) => void;
+  suggestions: Readonly<Record<string, ReadThroughProseSuggestionOut>>;
+  suggesting: Readonly<Record<string, boolean>>;
   busy: Readonly<Record<string, boolean>>;
   errors: Readonly<Record<string, string>>;
   empty: string;
@@ -293,6 +375,9 @@ export default function NotesPane({
                   activeAnchorId={activeAnchorId}
                   onAnchor={onAnchor}
                   onStatus={onStatus}
+                  onSuggest={onSuggest}
+                  suggestion={suggestions[n.id]}
+                  suggesting={!!suggesting[n.id]}
                   busy={!!busy[n.id]}
                   error={errors[n.id]}
                 />
