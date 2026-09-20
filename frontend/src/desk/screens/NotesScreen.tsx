@@ -21,6 +21,7 @@ import { useDeskData } from "../api/data";
 import type {
   ReadThroughNoteOut,
   ReadThroughOut,
+  ReadThroughProseSuggestionOut,
   ReadThroughStatusOut,
   ReadThroughSummaryOut,
 } from "../api/types";
@@ -124,6 +125,10 @@ export default function NotesScreen() {
   const [pollNotice, setPollNotice] = useState<string | null>(null);
   const pollingId = useRef<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Suggested prose, keyed by note id. Deliberately component state and nothing more: the server
+  // persists none of this, so a reload is meant to lose it rather than show stale prose.
+  const [suggestions, setSuggestions] = useState<Record<string, ReadThroughProseSuggestionOut>>({});
+  const [suggesting, setSuggesting] = useState<Record<string, boolean>>({});
   const [stopBusy, setStopBusy] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
   const stopInFlight = useRef(false);
@@ -364,6 +369,29 @@ export default function NotesScreen() {
     }
   }
 
+  async function suggestProse(note: ReadThroughNoteOut) {
+    if (suggesting[note.id]) return;
+    setSuggesting((p) => ({ ...p, [note.id]: true }));
+    setPatchErrors((p) => {
+      const rest = { ...p };
+      delete rest[note.id];
+      return rest;
+    });
+    try {
+      const out = await api.suggestProseForNote(note.id);
+      setSuggestions((p) => ({ ...p, [note.id]: out }));
+    } catch (e) {
+      // Shares the per-note error line with the status buttons: one note, one place to look.
+      setPatchErrors((p) => ({ ...p, [note.id]: errorDetail(e) }));
+    } finally {
+      setSuggesting((p) => {
+        const rest = { ...p };
+        delete rest[note.id];
+        return rest;
+      });
+    }
+  }
+
   async function copyMarkdown() {
     if (!rt) return;
     try {
@@ -590,6 +618,9 @@ export default function NotesScreen() {
                     activeAnchorId={activeAnchor}
                     onAnchor={onAnchor}
                     onStatus={(n, s) => void setNoteStatus(n, s)}
+                    onSuggest={(n) => void suggestProse(n)}
+                    suggestions={suggestions}
+                    suggesting={suggesting}
                     busy={patching}
                     errors={patchErrors}
                     empty="No cross-chapter notes for this read-through."
@@ -632,6 +663,9 @@ export default function NotesScreen() {
                         activeAnchorId={activeAnchor}
                         onAnchor={onAnchor}
                         onStatus={(n, s) => void setNoteStatus(n, s)}
+                        onSuggest={(n) => void suggestProse(n)}
+                        suggestions={suggestions}
+                        suggesting={suggesting}
                         busy={patching}
                         errors={patchErrors}
                         empty={

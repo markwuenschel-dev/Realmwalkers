@@ -85,7 +85,12 @@ _PASS_VERDICTS = frozenset({"approve", "approve_warn"})
 # - auto_run is consulted only for the enrichment and review lanes;
 # - the review/enrich lanes fall back on provider 429s only (rate_limit_only); every other wrapped
 #   agent uses full structural/semantic escalation ("escalation").
-QUALITY_LIVE: frozenset[str] = frozenset({"draft_model", "review_model"})
+# `prose_suggestion_model` is here because `read_through/suggest.py` genuinely reads
+# `quality_temperature` / `quality_effort` for it. Note `style_audit_model` reads them too and is NOT
+# listed — that is a real inconsistency in that role, not a pattern to copy: this map is what tells
+# the author whether the quality knob on the page does anything, so a role that reads the knob and is
+# absent here makes the UI lie in the safe-looking direction.
+QUALITY_LIVE: frozenset[str] = frozenset({"draft_model", "review_model", "prose_suggestion_model"})
 SEMANTIC_LIVE: frozenset[str] = frozenset({"packet_qa_model", "scene_packet_qa_model"})
 AUTO_RUN_LIVE: frozenset[str] = frozenset({"enrich_model", "review_model"})
 FALLBACK_MODE: dict[str, str] = {"review_model": "rate_limit_only", "enrich_model": "rate_limit_only"}

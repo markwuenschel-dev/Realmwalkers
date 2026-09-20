@@ -154,6 +154,10 @@ def policy_for_setting(setting_key: str) -> EscalationPolicy:
         "packet_qa_model": 3000,
         # A truncated read-through chapter/book response retries with at least the book pass's allowance.
         "read_through_model": 24000,
+        # Prose truncates mid-sentence, and a half-finished suggestion is worthless rather than
+        # merely shorter. The floor sits above the primary's own 2,600-token ceiling so the retry has
+        # room the first attempt did not.
+        "prose_suggestion_model": 4000,
     }
     return EscalationPolicy(
         never_fallback_tiers=runtime.never_fallback_tiers or frozenset(agent.never_fallback_tiers),

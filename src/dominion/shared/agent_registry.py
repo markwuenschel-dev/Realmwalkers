@@ -103,6 +103,7 @@ FALLBACK_ATTR: dict[str, str] = {
     "style_audit_model": "style_audit_fallback_model",
     # Read-through over author-supplied chapter snapshots (ADR 0035).
     "read_through_model": "read_through_fallback_model",
+    "prose_suggestion_model": "prose_suggestion_fallback_model",
 }
 
 STRUCTURAL_ESCALATION_TRIGGERS: tuple[str, ...] = ("truncated", "unparseable")
@@ -254,6 +255,30 @@ AGENTS: tuple[AgentDefinition, ...] = (
         default_fallback_tier="sonnet",
         never_fallback_tiers=(),
         # Only when the author asks — never per chapter on its own.
+        estimate=AgentEstimate(cost_band="medium", speed_band="slow", typical_calls_per_chapter=0),
+    ),
+    AgentDefinition(
+        setting_key="prose_suggestion_model",
+        label="Prose suggestion",
+        description="Drafts prose answering one read-through note, in the author's voice and against canon",
+        stages=("prose_suggestion",),
+        contract=AgentContract(
+            inputs=("one read-through note", "the anchored passage", "voice guide snapshot", "canon"),
+            outputs=("suggested prose, pinned to the note's anchor",),
+            context_load="Passage window + voice guide + prose standards + retrieved canon",
+            uses_memory=True,
+            writes_artifacts=False,
+        ),
+        # The read-through refuses to write prose so its notes stay diagnoses. This is the author
+        # asking, per note, for a demonstration — so it writes prose but still writes no ROW: nothing
+        # downstream reads it and no text changes until the author copies it out by hand.
+        permissions=AgentPermissions(can_block_downstream=False, can_write_summaries=False),
+        # Prose in someone else's voice is the hardest thing here; a cheap tier produces fluent
+        # pastiche, which is worse than nothing because it reads fine until the author notices.
+        default_primary_tier="opus",
+        default_fallback_tier="sonnet",
+        never_fallback_tiers=("haiku",),
+        # Only when the author asks, on one note at a time — never per chapter on its own.
         estimate=AgentEstimate(cost_band="medium", speed_band="slow", typical_calls_per_chapter=0),
     ),
     AgentDefinition(

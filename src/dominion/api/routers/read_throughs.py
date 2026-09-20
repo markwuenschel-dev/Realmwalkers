@@ -21,6 +21,7 @@ import json
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import ColumnElement, delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
@@ -44,11 +45,18 @@ from dominion.shared.schemas import (
     ReadThroughNoteOut,
     ReadThroughNotePatchIn,
     ReadThroughOut,
+    ReadThroughProseSuggestionOut,
+    ReadThroughProseVariantOut,
     ReadThroughStatusOut,
     ReadThroughSummaryOut,
 )
+from dominion.workers import telemetry, telemetry_db
+from dominion.workers.budget import BudgetExceeded
 from dominion.workers.context.style_source import load_style_document
 from dominion.workers.read_through import prompts, run
+from dominion.workers.read_through.suggest import suggest_prose
+
+log = structlog.get_logger()
 
 router = APIRouter(tags=["read-through"])
 
@@ -541,6 +549,152 @@ async def update_read_through_note(
     await session.commit()
     await session.refresh(note)
     return _note_out(note)
+
+
+# The telemetry stage stamped on every call this endpoint makes. It matches the `stages` tuple on the
+# `prose_suggestion_model` agent, which is what `STAGE_TO_SETTING` reads to attribute the row in Agent
+# Operations. Deliberately NOT added to `PIPELINE_STAGE_ORDER` — that orders the scene pipeline, and
+# this is an author-invoked one-off, exactly as `style_review.py:41-45` reasons for the style audit.
+_PROSE_SUGGESTION_STAGE = "prose_suggestion"
+
+
+async def _persist_suggestion_telemetry(
+    session: AsyncSession, sink: telemetry.TelemetrySink, *, run_id: uuid.UUID, book_id: uuid.UUID
+) -> bool:
+    """Flush this request's captured calls to `llm_calls` and commit. True iff the rows landed.
+
+    Never raises. It runs in a `finally`, including the path where the provider itself failed, and a
+    bookkeeping error thrown from there would replace the original exception — the author would see a
+    database message for what was actually a model outage.
+    """
+    if not sink.records:
+        return False
+    try:
+        telemetry_db.persist_sink(session, sink, run_id=run_id, book_id=book_id)
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        log.exception(
+            "read_through.suggestion_telemetry_persist_failed",
+            run_id=str(run_id),
+            stage=_PROSE_SUGGESTION_STAGE,
+            records=len(sink.records),
+            detail="the suggestion succeeded; its cost is not in llm_calls and will not appear in Agent Operations",
+        )
+        return False
+    return True
+
+
+def _anchor_for_suggestion(note: ReadThroughNote) -> tuple[uuid.UUID | None, str] | None:
+    """(chapter_id, quote) for the anchor a suggestion should attach to, or None if there is none.
+
+    Prefers a LOCATED anchor over an ambiguous one: ambiguous means the server found the quote in
+    several places and deliberately refused to choose, so writing against it would be picking one at
+    random. An unlocated anchor carries no usable span at all.
+    """
+    anchors = note.anchors or []
+    for wanted in ("located", "ambiguous"):
+        for anchor in anchors:
+            if anchor.get("state") != wanted:
+                continue
+            segments = anchor.get("segments") or []
+            quote = "".join(str(s.get("text") or "") for s in segments) or str(anchor.get("text_quoted") or "")
+            if quote.strip():
+                chapter_id = anchor.get("chapter_id")
+                return (uuid.UUID(str(chapter_id)) if chapter_id else None), quote
+    return None
+
+
+@router.post("/read-through-notes/{note_id}/prose-suggestion", response_model=ReadThroughProseSuggestionOut)
+async def suggest_prose_for_note(note_id: uuid.UUID, session: SessionDep) -> ReadThroughProseSuggestionOut:
+    """Draft prose answering this note, in the author's voice and against canon. Persists nothing.
+
+    Separate from the read-through itself on purpose: the read-through refuses to write prose so its
+    notes stay diagnoses rather than arguments for their own fix. This is the author, having read the
+    note, asking one of them to show its work — so it is a distinct agent, a distinct paid call, and
+    it happens only on this request.
+    """
+    note = await session.get(ReadThroughNote, note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="note not found")
+
+    read_through = await session.get(ReadThrough, note.read_through_id)
+    if read_through is None:
+        raise HTTPException(status_code=404, detail="the read-through this note belongs to is gone")
+
+    anchored = _anchor_for_suggestion(note)
+    if anchored is None:
+        raise HTTPException(
+            status_code=422,
+            detail="This note has no anchor in the text, so there is no passage to write against.",
+        )
+    anchor_chapter_id, anchor_quote = anchored
+
+    chapter_id = note.chapter_id or anchor_chapter_id
+    chapter = await session.get(ReadThroughChapter, chapter_id) if chapter_id else None
+    if chapter is None:
+        raise HTTPException(
+            status_code=422,
+            detail="This note is not tied to a chapter in this read-through, so there is nothing to quote from.",
+        )
+
+    # One sink per request, but the run id is the READ-THROUGH's, not a fresh uuid: the suggestion is
+    # spend belonging to that reading, and sharing the run keeps it on the same Telemetry row the
+    # author already recognises (which `run_kind_for_stages` still labels "Read-through", because the
+    # run's other stages map to `read_through_model`).
+    sink = telemetry.TelemetrySink()
+    telemetry_recorded = False
+    try:
+        with telemetry.call_context(telemetry.CallContext(sink=sink, stage=_PROSE_SUGGESTION_STAGE)):
+            result = await suggest_prose(
+                session,
+                book_id=read_through.book_id,
+                chapter_text=chapter.text,
+                anchor_quote=anchor_quote,
+                note_title=note.title,
+                observation=note.observation,
+                recommendation=note.recommendation,
+                voice_guide=read_through.voice_guide_snapshot or "",
+            )
+    except BudgetExceeded as exc:
+        raise HTTPException(
+            status_code=413,
+            detail=f"This chapter plus the author's standards is too long to write against: {exc}",
+        ) from exc
+    finally:
+        # In `finally` deliberately: a provider failure is still a billable call that `llm.py` records
+        # to the sink, and dropping that row would make exactly the failures worth investigating the
+        # ones with no telemetry.
+        telemetry_recorded = await _persist_suggestion_telemetry(
+            session, sink, run_id=read_through.id, book_id=read_through.book_id
+        )
+
+    if not result.standards_loaded:
+        # With no voice guide and no prose standards this is a general writing assistant wearing the
+        # app's clothes, which is precisely what the author's rules exist to not be. Returning prose
+        # anyway would hide that.
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "None of the author's standards could be loaded, so there is nothing to write in the "
+                "voice of. Push them with `python -m dominion.tools.push_style`."
+            ),
+        )
+
+    return ReadThroughProseSuggestionOut(
+        suggestions=[
+            ReadThroughProseVariantOut(mode=s.mode, anchor_quote=s.anchor_quote, prose=s.prose, why=s.why)
+            for s in result.suggestions
+        ],
+        standards_loaded=result.standards_loaded,
+        standards_missing=result.standards_missing,
+        canon_sources=result.canon_sources,
+        drift_scope_characters=result.drift_scope_characters,
+        fabricated_dropped=result.fabricated_dropped,
+        telemetry_recorded=telemetry_recorded,
+        model=result.model,
+        tokens_used=result.tokens_used,
+    )
 
 
 @router.delete("/read-throughs/{read_through_id}", response_model=ReadThroughDeleteOut)

@@ -19,6 +19,7 @@ const apiMock = vi.hoisted(() => ({
   startReadThrough: vi.fn(),
   stopReadThrough: vi.fn(),
   patchReadThroughNote: vi.fn(),
+  suggestProseForNote: vi.fn(),
   deleteReadThrough: vi.fn(),
 }));
 
@@ -533,6 +534,52 @@ describe("NotesScreen · results", () => {
     expect(apiMock.patchReadThroughNote).toHaveBeenCalledWith("n-high", { status: "done" });
     expect(apiMock.readThrough).toHaveBeenCalledTimes(1);
     expect(apiMock.readThroughs).toHaveBeenCalledTimes(1);
+  });
+
+  it("suggests prose for a note and says nothing is saved", async () => {
+    apiMock.suggestProseForNote.mockResolvedValue({
+      suggestions: [
+        {
+          mode: "insert_before",
+          anchor_quote: LINE,
+          prose: "The lantern had a job, and it was not light.",
+          why: "Gives the object a purpose before it recurs.",
+        },
+      ],
+      standards_loaded: ["voice_guide", "prose_contract"],
+      standards_missing: [],
+      canon_sources: ["canon/objects.md#lantern"],
+      drift_scope_characters: [],
+      fabricated_dropped: 0,
+      telemetry_recorded: true,
+      model: "claude-opus-latest",
+      tokens_used: 1200,
+    });
+    render(<NotesScreen />);
+    const card = (await screen.findByText("The lantern never pays off")).closest("article");
+
+    fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Suggest prose" }));
+    expect(apiMock.suggestProseForNote).toHaveBeenCalledWith("n-high");
+    expect(
+      await within(card as HTMLElement).findByText("The lantern had a job, and it was not light."),
+    ).toBeInTheDocument();
+    // The author must be told the prose is theirs to copy and will not survive a reload.
+    expect(within(card as HTMLElement).getByText(/nothing saved/)).toBeInTheDocument();
+  });
+
+  it("reports a suggestion failure on the note instead of silently doing nothing", async () => {
+    apiMock.suggestProseForNote.mockRejectedValue(
+      new ApiError(503, "Service Unavailable", "", {
+        detail: "None of the author's standards could be loaded",
+      }),
+    );
+    render(<NotesScreen />);
+    const card = (await screen.findByText("The lantern never pays off")).closest("article");
+
+    fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Suggest prose" }));
+    expect(
+      await within(card as HTMLElement).findByText(/standards could be loaded/),
+    ).toBeInTheDocument();
   });
 
   it("asks before deleting a finished run", async () => {

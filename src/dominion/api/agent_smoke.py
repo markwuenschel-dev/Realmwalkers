@@ -194,7 +194,11 @@ async def _run_agent_checks(
                     detail="scene packet fixture must be valid",
                 )
             )
-        elif setting in ("draft_model", "review_model", "enrich_model"):
+        # `prose_suggestion_model` has no fixture to parse: it emits prose, not a structured artifact,
+        # so there is nothing to validate offline beyond its settings resolving. Without this branch it
+        # falls to the `else` below and reports "no smoke harness", which reads as a failure rather
+        # than as "nothing to check here".
+        elif setting in ("draft_model", "review_model", "enrich_model", "prose_suggestion_model"):
             checks.append(
                 SmokeTestCheckOut(
                     name="config_resolved",

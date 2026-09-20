@@ -9949,6 +9949,50 @@
           }
         }
       }
+    },
+    "/read-through-notes/{note_id}/prose-suggestion": {
+      "post": {
+        "tags": [
+          "read-through"
+        ],
+        "summary": "Suggest Prose For Note",
+        "description": "Draft prose answering this note, in the author's voice and against canon. Persists nothing.\n\nSeparate from the read-through itself on purpose: the read-through refuses to write prose so its\nnotes stay diagnoses rather than arguments for their own fix. This is the author, having read the\nnote, asking one of them to show its work \u2014 so it is a distinct agent, a distinct paid call, and\nit happens only on this request.",
+        "operationId": "suggest_prose_for_note_read_through_notes__note_id__prose_suggestion_post",
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadThroughProseSuggestionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -19392,6 +19436,104 @@
           "notes"
         ],
         "title": "ReadThroughOut"
+      },
+      "ReadThroughProseSuggestionOut": {
+        "properties": {
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/ReadThroughProseVariantOut"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          },
+          "standards_loaded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Standards Loaded"
+          },
+          "standards_missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Standards Missing"
+          },
+          "canon_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Canon Sources"
+          },
+          "drift_scope_characters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Drift Scope Characters"
+          },
+          "fabricated_dropped": {
+            "type": "integer",
+            "title": "Fabricated Dropped"
+          },
+          "telemetry_recorded": {
+            "type": "boolean",
+            "title": "Telemetry Recorded"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "tokens_used": {
+            "type": "integer",
+            "title": "Tokens Used"
+          }
+        },
+        "type": "object",
+        "required": [
+          "suggestions",
+          "standards_loaded",
+          "standards_missing",
+          "canon_sources",
+          "drift_scope_characters",
+          "fabricated_dropped",
+          "telemetry_recorded",
+          "model",
+          "tokens_used"
+        ],
+        "title": "ReadThroughProseSuggestionOut",
+        "description": "The response of asking one note to show its work. Nothing here is persisted."
+      },
+      "ReadThroughProseVariantOut": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "anchor_quote": {
+            "type": "string",
+            "title": "Anchor Quote"
+          },
+          "prose": {
+            "type": "string",
+            "title": "Prose"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "anchor_quote",
+          "prose",
+          "why"
+        ],
+        "title": "ReadThroughProseVariantOut",
+        "description": "One piece of suggested prose, pinned to a span of the chapter snapshot.\n\nPrefixed `ReadThrough` rather than named `ProseVariantOut` on purpose: two Pydantic classes\nsharing a short name make FastAPI fully-qualify BOTH in the OpenAPI components, which silently\nrenames the other one and breaks whichever `types.ts` alias resolved to it."
       },
       "ReadThroughSegmentOut": {
         "properties": {

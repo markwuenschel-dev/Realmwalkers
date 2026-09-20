@@ -271,6 +271,17 @@ class Settings(BaseSettings):
     # what stops a whole chapter pasted in one go from becoming a single enormous request.
     style_audit_token_budget: int = 90_000
 
+    # Prose suggestion: the author asking one read-through note to show its work. Defaults to a
+    # stronger model than its siblings on purpose — this is the only role that writes prose in the
+    # author's voice, and a cheap model produces fluent pastiche that reads fine until it doesn't.
+    prose_suggestion_model: str = "claude-opus-latest"
+    prose_suggestion_fallback_model: str = "gpt-5.6-terra"
+    # Sized like the style audit's: one call carrying a passage window, the voice guide, two prose
+    # standards, the scoped drift patterns and up to six canon snippets. Must stay under
+    # OPENAI_LONG_CONTEXT_THRESHOLD_TOKENS — `tests/test_model_pricing.py` enrols this by name and
+    # fails if it ever crosses into OpenAI's higher price band.
+    prose_suggestion_token_budget: int = 90_000
+
     # Read-through (ADR 0035): developmental notes on author-supplied chapter snapshots, one call per
     # chapter plus one cross-chapter pass. Every value below is INITIAL policy, judged on the first live
     # reading — change them here or via DOMINION_ env, not in the worker. The attempt allowance and the
