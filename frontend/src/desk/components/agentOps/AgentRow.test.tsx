@@ -8,8 +8,13 @@ vi.mock("../../state", () => ({
 }));
 
 const PROVIDER_TIERS: Record<string, Record<string, string>> = {
-  anthropic: { sonnet: "claude-sonnet-5", opus: "claude-opus-latest" },
-  openai: { haiku: "gpt-5.6-luna", sonnet: "gpt-5.6-terra", opus: "gpt-5.6-sol" },
+  anthropic: { sonnet: "claude-sonnet-5", opus: "claude-opus-latest", fable: "claude-fable-5-1" },
+  openai: {
+    haiku: "gpt-5.6-luna",
+    sonnet: "gpt-5.6-terra",
+    opus: "gpt-5.6-sol",
+    fable: "gpt-6-astra",
+  },
   google: { sonnet: "gemini-3.8-flash", opus: "gemini-3.1-pro-preview" },
   xai: { opus: "grok-4.6" },
   moonshot: { opus: "kimi-k3" },
@@ -104,7 +109,7 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
 }
 
 describe("AgentRow flat model picker", () => {
-  it("shows all 10 models in one row, with no Anthropic Haiku and the two newest providers last", () => {
+  it("shows all 12 models in one row, cheapest tier first, with the frontier tier last per provider", () => {
     const { primary } = renderOpen();
     const buttons = primary
       .getAllByRole("button")
@@ -113,9 +118,13 @@ describe("AgentRow flat model picker", () => {
     expect(buttons).toEqual([
       "Sonnet",
       "Opus",
+      "Fable",
       "GPT 5.6 Luna",
       "GPT 5.6 Terra",
       "GPT 5.6 Sol",
+      // Labelled, not left to the tier name: without this it would also render "Fable" and collide
+      // with Anthropic's button.
+      "GPT-6 Astra",
       "Gemini Flash",
       "Gemini Pro",
       "Grok",
@@ -146,6 +155,18 @@ describe("AgentRow flat model picker", () => {
     const { onPickTier, primary } = renderOpen();
     fireEvent.click(primary.getByText("Grok"));
     expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "xai");
+  });
+
+  it("picking the frontier tier calls onPickTier with that provider's fable slot", () => {
+    const { onPickTier, primary } = renderOpen();
+    fireEvent.click(primary.getByText("GPT-6 Astra"));
+    expect(onPickTier).toHaveBeenCalledWith("draft_model", "fable", "openai");
+  });
+
+  it("offers no frontier button for a provider that has no fable model", () => {
+    const { primary } = renderOpen({ providerTiers: { xai: PROVIDER_TIERS.xai } });
+    expect(primary.queryByText("Fable")).toBeNull();
+    expect(primary.getByText("Grok")).toBeInTheDocument();
   });
 
   it("picking Kimi K3 calls onPickTier with moonshot/opus", () => {

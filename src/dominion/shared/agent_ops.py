@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -202,7 +203,10 @@ def _agent_ops_row(agent: AgentDefinition, override: AgentPolicyOverride | None)
 
 
 def _pipeline_estimate(agents: list[AgentOpsAgentOut]) -> PipelineEstimateOut:
-    opus = sonnet = haiku = total = 0
+    # Counted by tier rather than by an if/elif/else: the old chain ended in `else: haiku += n`, so a
+    # tier added later was silently counted as the cheapest one. A dict cannot do that quietly.
+    by_tier: Counter[str] = Counter()
+    total = 0
     max_cost = 0
     max_speed = 0
     agent_models = {row.setting: row.model for row in agents}
@@ -210,13 +214,7 @@ def _pipeline_estimate(agents: list[AgentOpsAgentOut]) -> PipelineEstimateOut:
         agent_def = next(a for a in AGENTS if a.setting_key == row.setting)
         n = agent_def.estimate.typical_calls_per_chapter
         total += n
-        tier = row.tier or "sonnet"
-        if tier == "opus":
-            opus += n
-        elif tier == "sonnet":
-            sonnet += n
-        else:
-            haiku += n
+        by_tier[row.tier or "sonnet"] += n
         max_cost = max(max_cost, _COST_RANK.get(agent_def.estimate.cost_band, 1))
         max_speed = max(max_speed, _SPEED_RANK.get(agent_def.estimate.speed_band, 1))
     cost_labels = {v: k for k, v in _COST_RANK.items()}
@@ -226,9 +224,10 @@ def _pipeline_estimate(agents: list[AgentOpsAgentOut]) -> PipelineEstimateOut:
         cost_band=cost_labels[max_cost],
         latency_band=speed_labels[max_speed],
         summary=f"~{total} LLM calls per chapter (estimated)",
-        opus_calls=opus,
-        sonnet_calls=sonnet,
-        haiku_calls=haiku,
+        opus_calls=by_tier["opus"],
+        sonnet_calls=by_tier["sonnet"],
+        haiku_calls=by_tier["haiku"],
+        fable_calls=by_tier["fable"],
         total_estimated_calls=total,
         estimated_usd_per_chapter=usd_high,
         estimated_usd_low_per_chapter=usd_low,

@@ -6915,6 +6915,11 @@ export interface components {
       sonnet_calls: number;
       /** Haiku Calls */
       haiku_calls: number;
+      /**
+       * Fable Calls
+       * @default 0
+       */
+      fable_calls: number;
       /** Total Estimated Calls */
       total_estimated_calls: number;
       /** Estimated Usd Per Chapter */

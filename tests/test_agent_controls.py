@@ -281,3 +281,89 @@ def test_presets_drop_the_dead_review_semantic_escalation_hint():
     assert PRESET_BY_ID["continuity_audit"].policy_hints["review_model"] == {"quality_level": "quality"}
     # QA-gate semantic hints stay (semantic escalation is live there).
     assert PRESET_BY_ID["high_quality_chapter"].policy_hints["packet_qa_model"] == {"semantic_escalation": True}
+
+
+# --- (d) the tier vocabulary -------------------------------------------------------------------
+
+
+def test_every_tier_in_the_vocabulary_is_ranked_and_has_a_latency_band():
+    """The three maps that define a tier live in two modules and are hand-maintained. A tier present
+    in one and missing from another does not fail to import — it silently sorts or estimates wrong."""
+    from typing import get_args
+
+    from dominion.shared import agent_registry as reg
+    from dominion.shared.model_pricing import TIER_LATENCY_SEC
+
+    vocabulary = set(get_args(reg.Tier))
+    assert set(reg._TIER_RANK) == vocabulary, "a tier with no rank cannot be ordered against the others"
+    assert set(TIER_LATENCY_SEC) == vocabulary, "a tier with no latency band estimates at the default"
+
+
+def test_fable_outranks_opus_and_a_provider_without_one_falls_back_to_opus():
+    """`fable` is the frontier band. Only Anthropic and OpenAI ship one, so every other provider must
+    round DOWN to its strongest available tier rather than erroring or silently picking a cheap one."""
+    from dominion.shared.agent_registry import _TIER_RANK, PROVIDER_TIERS, model_for_tier, resolve_tier_for_provider
+
+    assert _TIER_RANK["fable"] > _TIER_RANK["opus"]
+    assert model_for_tier("fable", "anthropic") == "claude-fable-5-1"
+    assert model_for_tier("fable", "openai") == "gpt-6-astra"
+    for provider in PROVIDER_TIERS:
+        resolved = resolve_tier_for_provider("fable", provider)
+        if "fable" in PROVIDER_TIERS[provider]:
+            assert resolved == "fable"
+        else:
+            assert resolved == "opus", f"{provider} should round down to opus, got {resolved}"
+
+
+def test_fable_5_1_takes_effort_despite_not_matching_the_fable_5_entry():
+    """`supports_effort` compares `model.split("-20")[0]` against an allowlist, so "claude-fable-5-1"
+    does NOT match the "claude-fable-5" entry. Without its own entry the app would silently stop
+    sending `effort` to the strongest model it offers — the same trap claude-opus-latest hit."""
+    from dominion.shared.agent_registry import supports_effort, supports_temperature
+
+    assert supports_effort("claude-fable-5-1") is True
+    # Flagship Anthropic models 400 on `temperature`; the allowlist is deliberately not extended.
+    assert supports_temperature("claude-fable-5-1") is False
+
+
+def test_the_frontier_models_are_priced_at_twice_opus():
+    from dominion.shared.model_pricing import pricing_for_model
+
+    fable = pricing_for_model("claude-fable-5-1")
+    opus = pricing_for_model("claude-opus-latest")
+    assert (fable.input, fable.output, fable.cache_read) == (10.0, 50.0, 0.25)
+    assert fable.input == 2 * opus.input and fable.output == 2 * opus.output
+    assert pricing_for_model("gpt-6-astra").input == 10.0
+
+
+def test_a_fable_agent_is_counted_as_frontier_not_as_the_cheapest_tier():
+    """The bucket used to be an if/elif/else ending in `else: haiku += n`, so any tier added later was
+    silently counted as the cheapest and rendered as "fast-tier calls" — the most expensive band in
+    the book reported as the least."""
+    from dominion.shared import agent_ops
+    from dominion.shared.agent_registry import AGENTS
+
+    rows = [agent_ops._agent_ops_row(a, None) for a in AGENTS]
+    before = agent_ops._pipeline_estimate(rows)
+    drafter = next(r for r in rows if r.setting == "draft_model")
+    was = drafter.tier
+    drafter.tier = "fable"
+    after = agent_ops._pipeline_estimate(rows)
+
+    calls = next(a for a in AGENTS if a.setting_key == "draft_model").estimate.typical_calls_per_chapter
+    assert calls > 0, "this test is vacuous unless the drafter actually makes calls"
+    # The drafter's calls move OUT of whatever band it was in and INTO the frontier band. Asserted as
+    # a delta because the other roles legitimately occupy the other buckets.
+    assert after.fable_calls == before.fable_calls + calls
+    assert getattr(after, f"{was}_calls") == getattr(before, f"{was}_calls") - calls
+    assert after.total_estimated_calls == before.total_estimated_calls, "nothing should be lost"
+
+
+def test_a_dated_frontier_id_still_resolves_to_its_tier():
+    """`provider_and_tier_of` falls back to a substring scan for ids that predate or postdate the
+    catalog. Without "fable" in that scan a dated snapshot resolves to NO tier, which unhighlights the
+    button, mis-estimates latency, and remaps to haiku in the length guard."""
+    from dominion.shared.agent_registry import provider_and_tier_of
+
+    assert provider_and_tier_of("claude-fable-5-1-20260915") == ("anthropic", "fable")
+    assert provider_and_tier_of("claude-haiku-4-5-20251001") == ("anthropic", "haiku")

@@ -6,11 +6,19 @@ import type { AgentOpsAgentOut, AgentStatsOut } from "../../api/types";
 import { AgentHealthStrip } from "./AgentHealthStrip";
 import { Chip, Eyebrow } from "../ui";
 
-const TIER_LABEL: Record<string, string> = { haiku: "Haiku", sonnet: "Sonnet", opus: "Opus" };
+// Quality bands, cheapest to strongest. `fable` is the frontier band, added 2026-09-21.
+const TIER_ORDER = ["haiku", "sonnet", "opus", "fable"] as const;
+const TIER_LABEL: Record<string, string> = {
+  haiku: "Haiku",
+  sonnet: "Sonnet",
+  opus: "Opus",
+  fable: "Fable",
+};
 const TIER_HINT: Record<string, string> = {
   haiku: "fastest / cheapest",
   sonnet: "balanced",
   opus: "strongest / most expensive",
+  fable: "frontier — about twice opus, and slower",
 };
 const QUALITY_ORDER = ["fast", "balanced", "quality"] as const;
 const QUALITY_LABEL: Record<string, string> = {
@@ -33,6 +41,7 @@ const MODEL_LABEL: Record<string, string> = {
   "gpt-5.6-luna": "GPT 5.6 Luna",
   "gpt-5.6-terra": "GPT 5.6 Terra",
   "gpt-5.6-sol": "GPT 5.6 Sol",
+  "gpt-6-astra": "GPT-6 Astra",
   "gemini-3.8-flash": "Gemini Flash",
   "gemini-3.1-pro-preview": "Gemini Pro",
   "grok-4.6": "Grok",
@@ -71,7 +80,7 @@ function modelCatalog(providerTiers: Record<string, Record<string, string>>): Mo
   ];
   for (const provider of orderedProviders) {
     const tiers = providerTiers[provider] ?? {};
-    for (const tier of ["haiku", "sonnet", "opus"]) {
+    for (const tier of TIER_ORDER) {
       const model = tiers[tier];
       if (!model) continue;
       options.push({
@@ -117,7 +126,7 @@ export function AgentRow({
   const a = agent;
   const catalog = modelCatalog(providerTiers);
   // Show the fallback as the actual model (e.g. "Grok", "GPT 5.5") when set, not the raw tier word:
-  // the tier vocabulary (opus/sonnet/haiku) is provider-neutral internally but reads as Anthropic-only.
+  // the tier vocabulary (haiku/sonnet/opus/fable) is provider-neutral internally but reads as Anthropic-only.
   const fbTier = a.policy.fallback_tier;
   const fbModel =
     fbTier && a.policy.fallback_provider
@@ -209,7 +218,7 @@ export function AgentRow({
               </div>
               <Eyebrow style="margin:10px 0 6px">never fall back to</Eyebrow>
               <div data-testid="never-fallback-group" style={css("display:flex;gap:6px")}>
-                {["haiku", "sonnet", "opus"].map((tier) => {
+                {TIER_ORDER.map((tier) => {
                   const banned = a.policy.never_fallback.includes(tier);
                   return (
                     <Chip
