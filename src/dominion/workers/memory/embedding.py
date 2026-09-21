@@ -71,22 +71,52 @@ def _openai_embed(text: str) -> list[float]:
     return [float(x) for x in vec]
 
 
-def embed(text: str) -> list[float]:
-    """Map text to a 1536-vector via the configured backend. Falls back to the deterministic hash
-    vector if the provider is unavailable or errors, so retrieval never hard-fails."""
+HASH_VERSION = "hash:v1"
+
+
+def _configured_version() -> str:
+    return f"openai:{settings.embedding_model}" if _use_openai() else HASH_VERSION
+
+
+def embed_with_version(text: str) -> tuple[list[float], str]:
+    """The vector AND the version of the backend that ACTUALLY produced it.
+
+    Every caller that persists `embedding_version` must use this rather than pairing `embed()` with
+    `embedding_version()`. The latter reports what is CONFIGURED; on a provider error this function
+    quietly returns a hash vector, and stamping the configured version would label a bag-of-words
+    vector as an OpenAI one — permanently, invisibly, and in the same table the good rows live in.
+    Nothing downstream can tell them apart: retrieval applies no version filter, so a mislabelled row
+    is ranked by cosine distance against a vector space it does not belong to, and the result is
+    noise that looks like a result.
+    """
     global _warned_no_key
     if settings.embedding_provider == "openai" and not settings.openai_api_key:
         if not _warned_no_key:  # once, not per chunk
             log.warning("embedding.no_openai_key", note="OPENAI_API_KEY unset; using hash fallback")
             _warned_no_key = True
-        return _hash_embed(text)
+        return _hash_embed(text), HASH_VERSION
     if not _use_openai():
-        return _hash_embed(text)
+        return _hash_embed(text), HASH_VERSION
     try:
-        return _openai_embed(text)
+        return _openai_embed(text), _configured_version()
     except Exception as exc:  # noqa: BLE001 — never let an embedding outage break ingest/retrieval
         log.warning("embedding.openai_failed", error=str(exc), note="falling back to hash vector")
-        return _hash_embed(text)
+        return _hash_embed(text), HASH_VERSION
+
+
+def embed(text: str) -> list[float]:
+    """Map text to a 1536-vector via the configured backend. Falls back to the deterministic hash
+    vector if the provider is unavailable or errors, so retrieval never hard-fails.
+
+    Use this only where the vector is transient — embedding a QUERY. Anything that stores the vector
+    must use `embed_with_version` so the stored label matches what actually ran.
+    """
+    return embed_with_version(text)[0]
+
+
+async def embed_with_version_async(text: str) -> tuple[list[float], str]:
+    """`embed_with_version()` off the event loop (same thread-offload rationale as `embed_async`)."""
+    return await asyncio.to_thread(embed_with_version, text)
 
 
 async def embed_async(text: str) -> list[float]:
@@ -123,23 +153,37 @@ def _openai_embed_many(texts: list[str]) -> list[list[float]]:
     return vecs
 
 
-def embed_many(texts: list[str]) -> list[list[float]]:
-    """Embed many texts, order preserved. Batches OpenAI calls (chunked by `_EMBED_BATCH`); a failed
-    batch falls back to the deterministic hash vector for that batch, so a provider hiccup never breaks a
-    rebuild. The hash backend (offline/CI/tests) embeds each item directly."""
+def embed_many_with_version(texts: list[str]) -> list[tuple[list[float], str]]:
+    """Vectors AND the version that actually produced each one, order preserved.
+
+    The version is PER ITEM, not per call, because the fallback is per BATCH: a rebuild of 200 chunks
+    is four OpenAI calls, and the third one timing out leaves 64 hash vectors among 136 real ones. A
+    single version for the whole rebuild would mislabel whichever group it did not describe.
+    """
     if not texts:
         return []
     if not _use_openai():
-        return [_hash_embed(t) for t in texts]
-    out: list[list[float]] = []
+        return [(_hash_embed(t), HASH_VERSION) for t in texts]
+    version = _configured_version()
+    out: list[tuple[list[float], str]] = []
     for i in range(0, len(texts), _EMBED_BATCH):
         batch = texts[i : i + _EMBED_BATCH]
         try:
-            out.extend(_openai_embed_many(batch))
+            out.extend((vec, version) for vec in _openai_embed_many(batch))
         except Exception as exc:  # noqa: BLE001 — never let an embedding outage break a rebuild
             log.warning("embedding.openai_batch_failed", error=str(exc), note="hash fallback for batch")
-            out.extend(_hash_embed(t) for t in batch)
+            out.extend((_hash_embed(t), HASH_VERSION) for t in batch)
     return out
+
+
+def embed_many(texts: list[str]) -> list[list[float]]:
+    """Embed many texts, order preserved. See `embed()` on when this is the wrong function."""
+    return [vec for vec, _ in embed_many_with_version(texts)]
+
+
+async def embed_many_with_version_async(texts: list[str]) -> list[tuple[list[float], str]]:
+    """`embed_many_with_version()` off the event loop."""
+    return await asyncio.to_thread(embed_many_with_version, texts)
 
 
 async def embed_many_async(texts: list[str]) -> list[list[float]]:
@@ -148,8 +192,10 @@ async def embed_many_async(texts: list[str]) -> list[list[float]]:
 
 
 def embedding_version() -> str:
-    """Identifier for the vector space the active backend produces. Bumped implicitly by switching
-    provider/model, so stale chunks from another backend get re-embedded on the next ingest."""
-    if _use_openai():
-        return f"openai:{settings.embedding_model}"
-    return "hash:v1"
+    """The vector space the CONFIGURED backend would produce. Used to decide what needs re-embedding.
+
+    NOT for stamping a row: it describes configuration, not what happened. A provider error makes the
+    actual backend differ from this, which is why the write paths take their version from
+    `embed_with_version` / `embed_many_with_version` instead.
+    """
+    return _configured_version()

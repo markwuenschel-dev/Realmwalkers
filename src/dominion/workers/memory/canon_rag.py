@@ -21,7 +21,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.shared.config import settings
 from dominion.shared.db import SessionFactory
 from dominion.shared.models import Book, CanonEntity, canon_retrievable_filter
-from dominion.workers.memory.embedding import embed_async, embed_many_async, embedding_version
+from dominion.workers.memory.embedding import (
+    embed_async,
+    embed_many_with_version_async,
+    embed_with_version_async,
+    embedding_version,
+)
 from dominion.workers.memory.owner_router import _RULES
 
 log = structlog.get_logger()
@@ -218,15 +223,20 @@ async def ingest_path(session: AsyncSession, *, book_id: uuid.UUID, root: str | 
         if not _is_ingestable(path):
             continue
         for chunk in _chunk(path.read_text(encoding="utf-8")):
+            # Stamped like every other write path. These rows used to carry NULL, which made them
+            # permanently exempt from the staleness check and from any re-embed on a provider switch.
+            vec, vec_version = await embed_with_version_async(chunk)
             session.add(
                 CanonEntity(
                     book_id=book_id,
                     kind=kind,
                     name=path.stem,
                     body=chunk,
-                    embedding=await embed_async(chunk),
+                    embedding=vec,
                     source="repo_ingested",
                     status="active",
+                    embedding_model=settings.embedding_model,
+                    embedding_version=vec_version,
                 )
             )
             count += 1
@@ -296,8 +306,10 @@ async def ingest_incremental(
 
     # Phase 2: embed ALL pending chunks in one batched pass (chunked internally), then insert. This is
     # the speedup that keeps a full re-index from timing out (was one blocking embed per chunk).
-    vectors = await embed_many_async([p["chunk"] for p in pending])
-    for p, vec in zip(pending, vectors, strict=True):
+    # Versioned per item: a batch that falls back mid-rebuild leaves hash vectors among real ones, and
+    # stamping one version across the lot would label whichever group it did not describe.
+    embedded = await embed_many_with_version_async([p["chunk"] for p in pending])
+    for p, (vec, vec_version) in zip(pending, embedded, strict=True):
         session.add(
             CanonEntity(
                 book_id=book_id,
@@ -313,7 +325,7 @@ async def ingest_incremental(
                 source_priority=p["priority"],
                 content_hash=p["chash"],
                 embedding_model=settings.embedding_model,
-                embedding_version=version,
+                embedding_version=vec_version,
             )
         )
     indexed = len(pending)
