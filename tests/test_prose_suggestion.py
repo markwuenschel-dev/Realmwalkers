@@ -25,6 +25,7 @@ from dominion.shared.config import settings
 from dominion.shared.models import Book, LlmCall, ReadThrough, ReadThroughChapter, ReadThroughNote
 from dominion.workers import llm, telemetry
 from dominion.workers.budget import Usage
+from dominion.workers.llm import LlmProviderRefused, _provider_refusal
 from dominion.workers.llm_escalation import policy_for_setting, resolve_fallback_model
 from dominion.workers.read_through.suggest import _window
 
@@ -293,3 +294,55 @@ async def test_no_standards_is_503_rather_than_prose_from_a_general_assistant(
     resp = await app_client.post(f"/read-through-notes/{note_id}/prose-suggestion")
     assert resp.status_code == 503
     assert "standards" in resp.json()["detail"]
+
+
+# --------------------------------------------------------------------------------------------------
+# Provider refusals — a dead credential is not a 500
+# --------------------------------------------------------------------------------------------------
+
+
+class _FakeResponse:
+    def __init__(self, status_code: int, text: str) -> None:
+        self.status_code = status_code
+        self.text = text
+
+
+def test_classifier_names_a_4xx_and_ignores_429_and_5xx() -> None:
+    """429 has its own type (LlmRateLimited) and 5xx is transient; only a non-transient 4xx is a
+    refusal. Misclassifying either would turn a retryable blip into a dead-end error."""
+    import httpx
+
+    def http_error(status: int, body: str) -> httpx.HTTPStatusError:
+        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        return httpx.HTTPStatusError("x", request=request, response=httpx.Response(status, text=body))
+
+    hit = _provider_refusal(http_error(400, "credit balance is too low"))
+    assert hit is not None
+    host, status, detail = hit
+    assert host == "api.openai.com" and status == 400 and "credit balance" in detail
+    assert _provider_refusal(http_error(429, "slow down")) is None
+    assert _provider_refusal(http_error(503, "upstream")) is None
+    assert _provider_refusal(ValueError("unrelated")) is None
+
+
+async def test_a_dead_credential_is_502_that_repeats_what_the_provider_said(
+    app_client, db_factory, monkeypatch
+) -> None:
+    """The bug this endpoint actually hit in production: the provider refused for an empty balance
+    and the author saw a bare 500 with the reason only in the container log."""
+
+    async def refuse(**kwargs: Any) -> tuple[str, Usage]:
+        raise LlmProviderRefused(
+            "Anthropic refused the request (400): Your credit balance is too low to access the Anthropic API.",
+            provider="Anthropic",
+            status_code=400,
+            model="claude-opus-latest",
+        )
+
+    monkeypatch.setattr(llm, "complete", refuse)
+    _, _, note_id = await _seed_note(db_factory)
+    resp = await app_client.post(f"/read-through-notes/{note_id}/prose-suggestion")
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert "credit balance is too low" in detail
+    assert "Anthropic" in detail

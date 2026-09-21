@@ -53,6 +53,7 @@ from dominion.shared.schemas import (
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import BudgetExceeded
 from dominion.workers.context.style_source import load_style_document
+from dominion.workers.llm import LlmProviderRefused
 from dominion.workers.read_through import prompts, run
 from dominion.workers.read_through.suggest import suggest_prose
 
@@ -661,6 +662,12 @@ async def suggest_prose_for_note(note_id: uuid.UUID, session: SessionDep) -> Rea
             status_code=413,
             detail=f"This chapter plus the author's standards is too long to write against: {exc}",
         ) from exc
+    except LlmProviderRefused as exc:
+        # The provider declined a well-formed request: an empty balance, a wrong key, a model this
+        # account may not use. Nothing about the manuscript is wrong and retrying cannot help, so it
+        # gets its own status and repeats what the provider said — a bare 500 tells the author their
+        # software is broken when in fact their billing is.
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     finally:
         # In `finally` deliberately: a provider failure is still a billable call that `llm.py` records
         # to the sink, and dropping that row would make exactly the failures worth investigating the

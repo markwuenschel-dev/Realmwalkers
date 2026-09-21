@@ -271,10 +271,15 @@ class Settings(BaseSettings):
     # what stops a whole chapter pasted in one go from becoming a single enormous request.
     style_audit_token_budget: int = 90_000
 
-    # Prose suggestion: the author asking one read-through note to show its work. Defaults to a
-    # stronger model than its siblings on purpose — this is the only role that writes prose in the
+    # Prose suggestion: the author asking one read-through note to show its work. The top OpenAI
+    # tier, not the cheap default its siblings use — this is the only role that writes prose in the
     # author's voice, and a cheap model produces fluent pastiche that reads fine until it doesn't.
-    prose_suggestion_model: str = "claude-opus-latest"
+    #
+    # It shipped as claude-opus-latest, which was the better voice-matcher and a worse default: the
+    # deploy box's Anthropic balance was empty, so the very first press returned a 500. Every other
+    # role runs on OpenAI, so nothing had ever exercised that key. A default must work on the
+    # credentials a deployment actually has; Opus stays one click away in the Settings picker.
+    prose_suggestion_model: str = "gpt-5.6-sol"
     prose_suggestion_fallback_model: str = "gpt-5.6-terra"
     # Sized like the style audit's: one call carrying a passage window, the voice guide, two prose
     # standards, the scoped drift patterns and up to six canon snippets. Must stay under

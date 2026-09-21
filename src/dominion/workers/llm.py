@@ -76,6 +76,44 @@ class LlmRateLimited(Exception):
         self.attempts = attempts
 
 
+class LlmProviderRefused(Exception):
+    """A non-transient provider 4xx: the request was well-formed and the provider declined it.
+
+    An exhausted balance, a revoked or wrong key, a model this account may not use. Distinct from
+    `LlmRateLimited` (transient, retrying helps) and from an author/QA failure (nothing about the
+    manuscript is wrong): this is a fact about how the deployment is configured or funded, and the
+    only useful response repeats what the provider said. Callers classify on this type rather than
+    string-matching provider prose, which differs per vendor and changes without notice.
+
+    Raised instead of letting the SDK error escape because a bare `anthropic.BadRequestError` out of
+    a route is a 500 — which tells the author their software is broken when in fact their card is.
+    """
+
+    def __init__(self, message: str, *, provider: str, status_code: int, model: str) -> None:
+        super().__init__(message)
+        self.provider = provider
+        self.status_code = status_code
+        self.model = model
+
+
+def _provider_refusal(exc: BaseException) -> tuple[str, int, str] | None:
+    """(provider, status_code, provider message) for a non-transient 4xx, else None.
+
+    429 is excluded deliberately — it is rate limiting and already has `LlmRateLimited`.
+    """
+    if isinstance(exc, anthropic.APIStatusError) and 400 <= exc.status_code < 500 and exc.status_code != 429:
+        return "Anthropic", exc.status_code, str(exc)
+    if isinstance(exc, openai.APIStatusError) and 400 <= exc.status_code < 500 and exc.status_code != 429:
+        return "OpenAI", exc.status_code, str(exc)
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        if 400 <= status < 500 and status != 429:
+            host = exc.request.url.host if exc.request is not None else "the provider"
+            body = (exc.response.text or "").strip()
+            return host, status, body[:400] or str(exc)
+    return None
+
+
 def estimate_tokens(text: str) -> int:
     """Conservative local estimate for context preflight when a provider tokenizer is unavailable."""
     return ceil(len(text) / 4) if text else 0
@@ -498,6 +536,14 @@ async def _call_with_retries(
                         f"{'y' if attempt == 1 else 'ies'}: {exc}",
                         retry_after_s=_retry_after_seconds(exc),
                         attempts=attempt + 1,
+                    ) from exc
+                if (refusal := _provider_refusal(exc)) is not None:
+                    provider, status, detail = refusal
+                    raise LlmProviderRefused(
+                        f"{provider} refused the request ({status}): {detail}",
+                        provider=provider,
+                        status_code=status,
+                        model=what,
                     ) from exc
                 raise
             delay = min(settings.llm_retry_max_delay_s, settings.llm_retry_base_delay_s * 2**attempt)
