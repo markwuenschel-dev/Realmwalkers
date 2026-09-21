@@ -34,7 +34,7 @@ from dominion.shared.schemas import (
 )
 from dominion.workers.activity import record_activity
 from dominion.workers.memory import canon_rag
-from dominion.workers.memory.embedding import embed_async, embedding_version
+from dominion.workers.memory.embedding import embed_with_version_async, embedding_version
 
 log = structlog.get_logger()
 router = APIRouter(tags=["world"])
@@ -160,8 +160,9 @@ async def upsert_character(
             canon = CanonEntity(book_id=book_id, kind="character", name=name)
             session.add(canon)
         canon.body = text
-        canon.embedding = (await embed_async(text)) if text else None
-        canon.embedding_version = embedding_version() if text else None
+        vec, vec_version = (await embed_with_version_async(text)) if text else (None, None)
+        canon.embedding = vec
+        canon.embedding_version = vec_version
         canon.embedding_model = settings.embedding_model if text else None
 
     await session.commit()
@@ -288,13 +289,14 @@ async def create_canon(book_id: uuid.UUID, body: CanonEntityIn, session: Session
     immediately retrievable by the drafter/planner RAG (DESIGN §7)."""
     await _require_book(book_id, session)
     text = (body.body or "").strip() or None
+    vec, vec_version = (await embed_with_version_async(text)) if text else (None, None)
     entity = CanonEntity(
         book_id=book_id,
         kind=(body.kind or "").strip() or None,
         name=(body.name or "").strip() or None,
         body=text,
-        embedding=(await embed_async(text)) if text else None,
-        embedding_version=embedding_version() if text else None,
+        embedding=vec,
+        embedding_version=vec_version,
         embedding_model=settings.embedding_model if text else None,
     )
     session.add(entity)
@@ -316,8 +318,9 @@ async def update_canon(canon_id: uuid.UUID, body: CanonEntityUpdateIn, session: 
     if "body" in data:
         text = (data["body"] or "").strip() or None
         entity.body = text
-        entity.embedding = (await embed_async(text)) if text else None
-        entity.embedding_version = embedding_version() if text else None
+        vec, vec_version = (await embed_with_version_async(text)) if text else (None, None)
+        entity.embedding = vec
+        entity.embedding_version = vec_version
         entity.embedding_model = settings.embedding_model if text else None
     await session.commit()
     return entity
