@@ -11,13 +11,18 @@ from typing import Any, Literal
 
 from dominion.shared.reviewer_telemetry import LEGACY_REVIEWERS_STAGE, REVIEWER_TELEMETRY_STAGES
 
-Tier = Literal["haiku", "sonnet", "opus"]
+# Quality bands, cheapest to strongest. The names are Anthropic's model families used as a
+# provider-neutral vocabulary; "fable" was added 2026-09-21 for the frontier tier that sits above
+# opus (claude-fable-5-1, gpt-6-astra), which both vendors price at roughly twice their opus.
+# Not every provider fills every band — `resolve_tier_for_provider` handles the gaps.
+Tier = Literal["haiku", "sonnet", "opus", "fable"]
 Provider = Literal["anthropic", "openai", "google", "xai", "moonshot", "meta"]
 CostBand = Literal["low", "medium", "high"]
 SpeedBand = Literal["fast", "medium", "slow"]
 
 # Per-provider tier -> model id. Providers fill in whichever tiers they have a model for; a provider
-# that ships a single general model is slotted at "opus", because the tier names a QUALITY band, not a
+# that ships a single general model is slotted at "opus" — not "fable", which is reserved for a
+# vendor's explicit frontier model — because the tier names a QUALITY band, not a
 # price band (grok-4.6 costs less than claude-sonnet-5 and is still that provider's flagship).
 # `resolve_tier_for_provider` handles the gaps, so partial coverage is normal, not a defect.
 # Typed as plain str keys (not Provider/Tier) so it assigns directly into the dict[str, dict[str, str]]
@@ -34,11 +39,15 @@ PROVIDER_TIERS: dict[str, dict[str, str]] = {
         # app follows without an edit. The trade is that the model (and its price) can change under a
         # running book — `model_pricing` carries an explicit entry so cost never falls to the default.
         "opus": "claude-opus-latest",
+        # The frontier tier. Twice Opus's price, for the hardest long-running work — never a default;
+        # a role only reaches it because the author chose it.
+        "fable": "claude-fable-5-1",
     },
     "openai": {
         "haiku": "gpt-5.6-luna",
         "sonnet": "gpt-5.6-terra",
         "opus": "gpt-5.6-sol",
+        "fable": "gpt-6-astra",
     },
     "google": {
         "sonnet": "gemini-3.8-flash",
@@ -556,7 +565,9 @@ def provider_and_tier_of(model_id: str | None) -> tuple[str, str] | None:
     legacy_hit = _LEGACY_OPENAI_MODEL_TO_TIER.get(model_id or "")
     if legacy_hit is not None:
         return legacy_hit
-    for tier in ("opus", "sonnet", "haiku"):
+    # Strongest first: a dated id like "claude-fable-5-1-20260915" must match "fable" and stop, and
+    # the order is what guarantees a name containing two tier words resolves to the higher one.
+    for tier in ("fable", "opus", "sonnet", "haiku"):
         if tier in (model_id or ""):
             return ("anthropic", tier)
     return None
@@ -578,7 +589,7 @@ def model_for_tier(tier: str, provider: str = "anthropic") -> str | None:
     return PROVIDER_TIERS.get(provider, {}).get(tier)
 
 
-_TIER_RANK: dict[str, int] = {"haiku": 0, "sonnet": 1, "opus": 2}
+_TIER_RANK: dict[str, int] = {"haiku": 0, "sonnet": 1, "opus": 2, "fable": 3}
 
 
 def resolve_tier_for_provider(tier: str, provider: str) -> str:
@@ -586,7 +597,7 @@ def resolve_tier_for_provider(tier: str, provider: str) -> str:
 
     Providers don't all cover the same tiers (xAI ships one model today, slotted at "opus"). When
     `provider` has `tier` exactly, it's returned unchanged. Otherwise this resolves to that
-    provider's nearest tier by quality rank (haiku < sonnet < opus), rounding UP on a tie, so a
+    provider's nearest tier by quality rank (haiku < sonnet < opus < fable), rounding UP on a tie, so a
     provider with partial coverage still gets a sensible, same-provider model instead of an error
     or a silent switch to a different provider.
 
@@ -646,6 +657,7 @@ _ANTHROPIC_EFFORT_MODELS: frozenset[str] = frozenset(
         "claude-opus-4-5",
         "claude-sonnet-5",
         "claude-sonnet-4-6",
+        "claude-fable-5-1",
         "claude-fable-5",
     }
 )

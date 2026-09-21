@@ -17,8 +17,9 @@ TYPICAL_CALL_TOKENS: dict[str, tuple[int, int]] = {
     "scene_packet_qa_model": (6_000, 1_200),
 }
 
-# Rough wall-clock seconds per call by tier (planning estimate).
-TIER_LATENCY_SEC: dict[str, int] = {"haiku": 4, "sonnet": 10, "opus": 22}
+# Rough wall-clock seconds per call by tier (planning estimate). `fable` is the frontier band: slower than opus, which
+# is the trade it exists to offer.
+TIER_LATENCY_SEC: dict[str, int] = {"haiku": 4, "sonnet": 10, "opus": 22, "fable": 40}
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,16 @@ class ModelPricing:
 # keep its entry forever or its historical spend silently re-prices at the fallback rate. Entries below
 # marked "retired from the catalog" exist only to keep old rows honest — do not delete them.
 _MODEL_PRICING: dict[str, ModelPricing] = {
+    # Fable 5.1 — the frontier tier, owner-supplied 2026-09-21: $10 in, $50 out, $0.25 cache read,
+    # 1M context. Twice Opus 5's rate, which matches Anthropic's own framing of it as the step up for
+    # the hardest long-running work. No cache-WRITE rate was supplied; 12.50 is 1.25x input, the ratio
+    # every other Anthropic row in this table already uses (opus 5.00/6.25, sonnet 3.00/3.75,
+    # haiku 0.80/1.00), so it is consistent rather than invented.
+    "claude-fable-5-1": ModelPricing(input=10.0, output=50.0, cache_write=12.50, cache_read=0.25),
+    # The prior Fable generation. Not in the catalog, but `_ANTHROPIC_EFFORT_MODELS` already names
+    # it, so the app considers it a real id — and without this line it fell through to the Sonnet
+    # default at $3/$15, under-pricing it 3.3x. Same defect as the gpt-* family before #319.
+    "claude-fable-5": ModelPricing(input=10.0, output=50.0, cache_write=12.50, cache_read=0.50),
     # Opus 5 / Opus 4.8 share one rate ($5/$25); `claude-opus-latest` is the floating alias and resolves
     # to the Opus 5 generation today. Keyed separately from "claude-opus-4" because the substring match
     # ("claude-opus-4" in id) does not catch either "claude-opus-5" or "claude-opus-latest".

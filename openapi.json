@@ -17676,6 +17676,11 @@
             "type": "integer",
             "title": "Haiku Calls"
           },
+          "fable_calls": {
+            "type": "integer",
+            "title": "Fable Calls",
+            "default": 0
+          },
           "total_estimated_calls": {
             "type": "integer",
             "title": "Total Estimated Calls"

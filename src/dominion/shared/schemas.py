@@ -1728,7 +1728,7 @@ class ModelSettingUpdateIn(BaseModel):
     """PUT body to point one agent role at a provider + tier."""
 
     setting: str
-    tier: str  # haiku | sonnet | opus
+    tier: str  # haiku | sonnet | opus | fable
     provider: str = "anthropic"
 
 
@@ -1834,6 +1834,10 @@ class PipelineEstimateOut(BaseModel):
     opus_calls: int
     sonnet_calls: int
     haiku_calls: int
+    # The frontier band, added with the `fable` tier. Defaulted so an older client that never sends
+    # or reads it keeps working; before this existed, a fable call was bucketed as haiku and the Desk
+    # reported the most expensive tier in the book as "fast-tier calls".
+    fable_calls: int = 0
     total_estimated_calls: int
     estimated_usd_per_chapter: float | None = None
     estimated_usd_low_per_chapter: float | None = None
