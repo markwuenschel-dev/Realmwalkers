@@ -88,7 +88,10 @@ async def test_backoff_honors_retry_after_hint(monkeypatch: pytest.MonkeyPatch):
     assert len(sleeps) == 1 and sleeps[0] >= 5.0  # provider hint floors the backoff
 
 
-async def test_non_rate_limit_error_propagates_unwrapped(monkeypatch: pytest.MonkeyPatch):
+async def test_a_provider_4xx_is_reclassified_as_a_refusal(monkeypatch: pytest.MonkeyPatch):
+    """A non-transient 4xx says the deployment is misconfigured or unfunded, not that the request was
+    wrong. It used to propagate as a raw httpx/SDK error, which reached the API as a bare 500 — the
+    author was told their software was broken when the real answer was an empty balance."""
     monkeypatch.setattr(settings, "llm_max_retries", 0)
 
     async def _auth_error() -> Any:
@@ -96,8 +99,25 @@ async def test_non_rate_limit_error_propagates_unwrapped(monkeypatch: pytest.Mon
         response = httpx.Response(401, request=request, text="bad key")
         raise httpx.HTTPStatusError("401", request=request, response=response)
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(llm.LlmProviderRefused) as caught:
         await llm._call_with_retries(_auth_error, what="create", is_transient=llm._is_transient_http)
+    assert caught.value.status_code == 401
+    assert caught.value.provider == "api.openai.com"
+    assert "bad key" in str(caught.value)
+    # Still an Exception, so every `except Exception` worker path keeps catching it unchanged.
+    assert isinstance(caught.value, Exception)
+
+
+async def test_a_non_http_error_still_propagates_unwrapped(monkeypatch: pytest.MonkeyPatch):
+    """The reclassification is narrow on purpose: only a provider 4xx. A programming error must not
+    be dressed up as a billing problem."""
+    monkeypatch.setattr(settings, "llm_max_retries", 0)
+
+    async def _bug() -> Any:
+        raise ValueError("a real bug in the request builder")
+
+    with pytest.raises(ValueError, match="a real bug"):
+        await llm._call_with_retries(_bug, what="create", is_transient=llm._is_transient_http)
 
 
 async def test_prompt_budget_exceeded_fails_locally_before_any_provider_call():

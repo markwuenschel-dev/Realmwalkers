@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dominion.api.deps import SessionDep
 from dominion.workers import telemetry, telemetry_db
 from dominion.workers.budget import BudgetExceeded
+from dominion.workers.llm import LlmProviderRefused
 from dominion.workers.reviewers.style_audit import audit_prose
 
 log = structlog.get_logger()
@@ -147,6 +148,10 @@ async def style_review(body: StyleReviewIn, session: SessionDep) -> StyleReviewO
         # standards alone are ~69k characters — and it is the author's cue to audit a shorter passage,
         # so it gets its own status rather than a generic 502.
         raise HTTPException(413, f"passage too long to audit against the style rules: {exc}") from exc
+    except LlmProviderRefused as exc:
+        # Same reasoning as the read-through suggestion route: a provider refusing a valid request is
+        # a billing/credential fact, not a 500.
+        raise HTTPException(502, str(exc)) from exc
     finally:
         # Deliberately in `finally`: a provider failure is still a billable call, and `llm.py` records
         # it to the sink with its error. Dropping that row would make exactly the failures worth
