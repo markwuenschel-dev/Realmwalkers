@@ -20,7 +20,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from dominion.shared.agent_registry import model_for_tier, provider_and_tier_of, provider_of
+from dominion.shared.agent_registry import nearest_model_for_tier, provider_and_tier_of, provider_of
 from dominion.shared.config import settings
 from dominion.shared.enums import DraftStage, LengthStatus, Severity
 from dominion.workers import llm
@@ -43,7 +43,9 @@ def _length_model(configured: str) -> str:
         return configured
     hit = provider_and_tier_of(configured)
     tier = hit[1] if hit else "haiku"
-    return model_for_tier(tier, draft_provider) or configured
+    # Nearest, not exact: when the drafter's provider lacks this tier (OpenAI has no opus; Anthropic no
+    # haiku) an exact lookup returned None and the cross-provider model came back unchanged.
+    return nearest_model_for_tier(tier, draft_provider) or configured
 
 
 # Inlined from the former length/compress.py + length/expand.py (thin internal impl, not public boundaries).

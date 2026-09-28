@@ -47,10 +47,20 @@ def test_gpt_rates_are_the_owner_supplied_ones_not_the_sonnet_fallback():
     luna = pricing_for_model("gpt-5.6-luna")
     assert luna == ModelPricing(input=0.20, output=1.20, cache_write=0.25, cache_read=0.02)
     assert luna != _FALLBACK
-    # The concrete consequence, stated in dollars: 1M in + 100k out on the default model, priced right
-    # and priced by the old fallback.
+    # The concrete consequence, stated in dollars: 1M in + 100k out on what was the default model until
+    # GPT-6 (and still prices every historical row), priced right and priced by the old fallback.
     assert _cost_of_a_big_call("gpt-5.6-luna") == 0.32
     assert _cost_of_a_big_call("claude-sonnet-4") == 4.5
+
+
+def test_gpt_6_family_has_its_own_rates():
+    """GPT-6 ids share no prefix with the gpt-5.6 rows, so each needs its own entry or it bills at Sonnet."""
+    assert pricing_for_model("gpt-6-astra") == ModelPricing(input=10.0, output=50.0, cache_write=12.50, cache_read=1.00)
+    assert pricing_for_model("gpt-6-sol") == ModelPricing(input=2.0, output=10.0, cache_write=2.50, cache_read=0.20)
+    assert pricing_for_model("gpt-6-luna") == ModelPricing(input=0.10, output=0.50, cache_write=0.125, cache_read=0.01)
+    # 1M in + 100k out: Luna is 0.15 against gpt-5.6-luna's 0.32 — under half, on the same planning call.
+    assert _cost_of_a_big_call("gpt-6-luna") == 0.15
+    assert _cost_of_a_big_call("gpt-6-sol") == 3.0
 
 
 def test_no_configured_budget_reaches_openai_long_context_pricing():

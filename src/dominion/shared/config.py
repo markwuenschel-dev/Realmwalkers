@@ -40,31 +40,31 @@ class Settings(BaseSettings):
 
     # Anthropic (the key uses its own conventional env var, not the DOMINION_ prefix)
     anthropic_api_key: str | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
-    draft_model: str = "gpt-5.6-luna"
-    draft_fallback_model: str = "gpt-5.6-terra"
-    review_model: str = "gpt-5.6-luna"
-    review_fallback_model: str = "gpt-5.6-terra"
+    draft_model: str = "gpt-6-luna"
+    draft_fallback_model: str = "gpt-6-sol"
+    review_model: str = "gpt-6-luna"
+    review_fallback_model: str = "gpt-6-sol"
     # Enrichment passes are targeted rewrites layered on the Sonnet-drafted spine, so they run on Haiku
     # by default — roughly a third the cost and ~2-3x faster per pass, with little prose impact since
     # the spine already carries the voice. Override DOMINION_ENRICH_MODEL to put them back on Sonnet if
     # a chapter needs richer enrichment (DESIGN §5-6).
-    enrich_model: str = "gpt-5.6-luna"
+    enrich_model: str = "gpt-6-luna"
     # Rate-limit fallback only. Kept on the SAME provider deliberately: the fallback exists to survive
     # a 429, and hopping to Anthropic would trade a rate limit for a hard failure whenever that account
     # is unfunded — the enrichment pass soft-fails (PassError), so that lands as a silently un-enriched
     # scene rather than a visible error. Point this back at a claude model if both accounts are funded.
-    enrich_fallback_model: str = "gpt-5.6-terra"
+    enrich_fallback_model: str = "gpt-6-sol"
 
     # Contract-first drafting — Phase 1 (chapter packets). The packet agents run ONCE per chapter, so
     # a strong reasoner is cheap (amortized over ~12+ scenes) — they decide the guardrails every later
     # writer obeys, so default them to Sonnet. (Per-scene stage models — preflight/compression/QA —
     # arrive with their phases.)
-    packet_author_model: str = "gpt-5.6-luna"
-    packet_author_fallback_model: str = "gpt-5.6-terra"
+    packet_author_model: str = "gpt-6-luna"
+    packet_author_fallback_model: str = "gpt-6-sol"
     # QA only ATTACKS the author's packet (a checker, not a creator), so it rides Haiku like the
     # other checker/enrichment stages (review_model, enrich_model) — meaningfully faster second call.
-    packet_qa_model: str = "gpt-5.6-luna"
-    packet_qa_fallback_model: str = "gpt-5.6-terra"
+    packet_qa_model: str = "gpt-6-luna"
+    packet_qa_fallback_model: str = "gpt-6-sol"
     # The packet author/QA calls run synchronously inside the propose-packet request; bound them so a
     # hung call surfaces as a clean failure instead of a spinning browser (mirrors plan_time_budget_s).
     packet_time_budget_s: int = 300
@@ -77,8 +77,8 @@ class Settings(BaseSettings):
     # the once-per-chapter ChapterPacket author, these run ONCE PER SCENE (~12+ calls/chapter), so the
     # per-call latency/cost dominates the run. Both are exposed in the models tab (settings ROLES), so
     # bump the author to Sonnet there for a chapter that needs a richer contract.
-    scene_packet_author_model: str = "gpt-5.6-luna"
-    scene_packet_qa_model: str = "gpt-5.6-luna"
+    scene_packet_author_model: str = "gpt-6-luna"
+    scene_packet_qa_model: str = "gpt-6-luna"
     # The ScenePacket body is a large JSON object; if Haiku runs out of output tokens mid-object the
     # response is truncated and the parse fails closed ("incomplete body"). Give the author generous
     # headroom, and on an invalid/truncated body retry ONCE escalated to a stronger model — which both
@@ -86,14 +86,14 @@ class Settings(BaseSettings):
     # An empty fallback disables the escalation (the single attempt then stands or blocks).
     scene_packet_author_max_tokens: int = 8000
     scene_packet_qa_max_tokens: int = 3000
-    scene_packet_author_fallback_model: str = "gpt-5.6-terra"
-    scene_packet_qa_fallback_model: str = "gpt-5.6-terra"
+    scene_packet_author_fallback_model: str = "gpt-6-sol"
+    scene_packet_qa_fallback_model: str = "gpt-6-sol"
     # Import Adoption per-scene evidence extraction (ADR 0028). Its OWN role — a distinct high-volume
     # cost/quality decision (~1 call per imported scene), defaulting to the same economical tier as the
     # ScenePacket author; coupling it to either packet-author role would make operator tuning of one
     # workflow unexpectedly affect another. Escalates to a stronger model on unparseable output.
-    import_evidence_model: str = "gpt-5.6-luna"
-    import_evidence_fallback_model: str = "gpt-5.6-terra"
+    import_evidence_model: str = "gpt-6-luna"
+    import_evidence_fallback_model: str = "gpt-6-sol"
     # OUTPUT allowance for ONE extraction call. A real scene's span-anchored ledger is long: 13 sections,
     # each item carrying a quote and a span. MEASURED on the first real chapter runs: at 4000 the model's
     # JSON was cut off EXACTLY at the cap for an ordinary chapter scene — unparseable by construction —
@@ -162,8 +162,8 @@ class Settings(BaseSettings):
     scene_packet_block_on_provenance: bool = False
     # Length guard rewrites (compress/expand) are targeted edits on an existing draft, so they ride the
     # cheap/fast Haiku tier like the enrichment passes — never the main draft model.
-    length_compress_model: str = "gpt-5.6-luna"
-    length_expand_model: str = "gpt-5.6-luna"
+    length_compress_model: str = "gpt-6-luna"
+    length_expand_model: str = "gpt-6-luna"
 
     # Length guard policy (DESIGN: word budgeting). Default to NOT auto-rewriting: an over-max draft
     # lands with a WARN critique for the human, an under-min draft lands with INFO. Only a hard-max
@@ -178,8 +178,8 @@ class Settings(BaseSettings):
     # completion, never a prose failure. Bounded inflight caps the concurrent mode fan-out. The version
     # markers are recorded on every report as provenance: a prompt-version bump is provenance by default
     # and forces re-evaluation only when explicitly marked for recheck.
-    scene_fidelity_model: str = "gpt-5.6-luna"
-    scene_fidelity_fallback_model: str = "gpt-5.6-terra"
+    scene_fidelity_model: str = "gpt-6-luna"
+    scene_fidelity_fallback_model: str = "gpt-6-sol"
     scene_fidelity_max_inflight: int = 3
     scene_fidelity_prompt_version: int = 1
     scene_fidelity_facade_version: int = 1
@@ -265,22 +265,27 @@ class Settings(BaseSettings):
     voice_guide_path: str = "series/style/voice_guide.md"
     # Audit model. Separate from review_model so tightening the audit never silently re-prices the
     # per-scene reviewer fleet that runs on every draft.
-    style_audit_model: str = "gpt-5.6-luna"
-    style_audit_fallback_model: str = "gpt-5.6-terra"
+    style_audit_model: str = "gpt-6-luna"
+    style_audit_fallback_model: str = "gpt-6-sol"
     # A pasted passage is author-sized, not scene-sized, and the audit makes ONE call. This ceiling is
     # what stops a whole chapter pasted in one go from becoming a single enormous request.
     style_audit_token_budget: int = 90_000
 
-    # Prose suggestion: the author asking one read-through note to show its work. The top OpenAI
-    # tier, not the cheap default its siblings use — this is the only role that writes prose in the
-    # author's voice, and a cheap model produces fluent pastiche that reads fine until it doesn't.
+    # Prose suggestion: the author asking one read-through note to show its work. OpenAI's strongest
+    # non-frontier model, not the cheap default its siblings use — this is the only role that writes
+    # prose in the author's voice, and a cheap model produces fluent pastiche that reads fine until it
+    # doesn't. Since GPT-6 (2026-09-28) that is gpt-6-sol: OpenAI has no opus-band model any more, and
+    # gpt-6-astra is the frontier band, which no role reaches by default. There is NO default fallback:
+    # the only OpenAI model below Sol is Luna, a haiku-tier model this role's `never_fallback_tiers`
+    # blocks, so naming it would display a fallback that can never fire. With none, a 429 re-raises
+    # unchanged (`complete_with_rate_limit_fallback`); pick a fallback in Settings to change that.
     #
     # It shipped as claude-opus-latest, which was the better voice-matcher and a worse default: the
     # deploy box's Anthropic balance was empty, so the very first press returned a 500. Every other
     # role runs on OpenAI, so nothing had ever exercised that key. A default must work on the
     # credentials a deployment actually has; Opus stays one click away in the Settings picker.
-    prose_suggestion_model: str = "gpt-5.6-sol"
-    prose_suggestion_fallback_model: str = "gpt-5.6-terra"
+    prose_suggestion_model: str = "gpt-6-sol"
+    prose_suggestion_fallback_model: str = ""
     # Sized like the style audit's: one call carrying a passage window, the voice guide, two prose
     # standards, the scoped drift patterns and up to six canon snippets. Must stay under
     # OPENAI_LONG_CONTEXT_THRESHOLD_TOKENS — `tests/test_model_pricing.py` enrols this by name and
@@ -292,8 +297,8 @@ class Settings(BaseSettings):
     # reading — change them here or via DOMINION_ env, not in the worker. The attempt allowance and the
     # run-token ceiling are cumulative across a run; each call still gets its own work budget so a paid
     # response is never discarded (llm.py raises BudgetExceeded AFTER the call).
-    read_through_model: str = "gpt-5.6-luna"
-    read_through_fallback_model: str = "gpt-5.6-terra"
+    read_through_model: str = "gpt-6-luna"
+    read_through_fallback_model: str = "gpt-6-sol"
     read_through_max_chapters: int = 30
     read_through_max_chapter_chars: int = 160_000
     read_through_chapter_input_budget: int = 60_000  # estimated input tokens, refused before the call

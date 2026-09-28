@@ -9,12 +9,8 @@ vi.mock("../../state", () => ({
 
 const PROVIDER_TIERS: Record<string, Record<string, string>> = {
   anthropic: { sonnet: "claude-sonnet-5", opus: "claude-opus-latest", fable: "claude-fable-5-1" },
-  openai: {
-    haiku: "gpt-5.6-luna",
-    sonnet: "gpt-5.6-terra",
-    opus: "gpt-5.6-sol",
-    fable: "gpt-6-astra",
-  },
+  // GPT-6 is three models: no opus slot, so OpenAI renders three buttons, not four.
+  openai: { haiku: "gpt-6-luna", sonnet: "gpt-6-sol", fable: "gpt-6-astra" },
   google: { sonnet: "gemini-3.8-flash", opus: "gemini-3.1-pro-preview" },
   xai: { opus: "grok-4.6" },
   moonshot: { opus: "kimi-k3" },
@@ -109,7 +105,7 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
 }
 
 describe("AgentRow flat model picker", () => {
-  it("shows all 12 models in one row, cheapest tier first, with the frontier tier last per provider", () => {
+  it("shows all 11 models in one row, cheapest tier first, with the frontier tier last per provider", () => {
     const { primary } = renderOpen();
     const buttons = primary
       .getAllByRole("button")
@@ -119,9 +115,8 @@ describe("AgentRow flat model picker", () => {
       "Sonnet",
       "Opus",
       "Fable",
-      "GPT 5.6 Luna",
-      "GPT 5.6 Terra",
-      "GPT 5.6 Sol",
+      "GPT-6 Luna",
+      "GPT-6 Sol",
       // Labelled, not left to the tier name: without this it would also render "Fable" and collide
       // with Anthropic's button.
       "GPT-6 Astra",
@@ -135,8 +130,8 @@ describe("AgentRow flat model picker", () => {
 
   it("picking a model calls onPickTier with its (tier, provider) pair", () => {
     const { onPickTier, primary } = renderOpen();
-    fireEvent.click(primary.getByText("GPT 5.6 Sol"));
-    expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "openai");
+    fireEvent.click(primary.getByText("GPT-6 Sol"));
+    expect(onPickTier).toHaveBeenCalledWith("draft_model", "sonnet", "openai");
   });
 
   it("picking Gemini Flash calls onPickTier with google/sonnet", () => {
@@ -205,9 +200,9 @@ describe("AgentRow flat model picker", () => {
 
   it("highlights an active OpenAI model with the OpenAI brand color", () => {
     const { primary } = renderOpen({
-      agent: agent({ provider: "openai", tier: "haiku", model: "gpt-5.6-luna" }),
+      agent: agent({ provider: "openai", tier: "haiku", model: "gpt-6-luna" }),
     });
-    const btn = primary.getByText("GPT 5.6 Luna");
+    const btn = primary.getByText("GPT-6 Luna");
     expect(btn).toHaveStyle({ background: "#10A37F", color: "#FFFFFF" });
   });
 
@@ -253,14 +248,31 @@ describe("AgentRow flat model picker", () => {
 
   it("fallback row picks a model with (tier, provider), same as primary", () => {
     const { onSetFallback, fallback } = renderOpen();
-    fireEvent.click(fallback.getByText("GPT 5.6 Terra"));
+    fireEvent.click(fallback.getByText("GPT-6 Sol"));
     expect(onSetFallback).toHaveBeenCalledWith("draft_model", "sonnet", "openai");
+  });
+
+  it("names a fallback saved on a retired model by that model, not by what now fills its slot", () => {
+    // gpt-5.6-terra resolves to openai/sonnet, which the catalog now fills with gpt-6-sol. Reading the
+    // label off the slot would tell the author the agent falls back to GPT-6 Sol, which it does not.
+    renderOpen({
+      agent: agent({
+        policy: {
+          ...agent().policy,
+          fallback_tier: "sonnet",
+          fallback_model: "gpt-5.6-terra",
+          fallback_provider: "openai",
+        },
+      }),
+    });
+    expect(screen.getByText("fallback: GPT 5.6 Terra")).toBeInTheDocument();
+    expect(screen.queryByText("fallback: GPT-6 Sol")).not.toBeInTheDocument();
   });
 
   it("only shows models that a partial provider catalog actually offers", () => {
     const { primary } = renderOpen({ providerTiers: { anthropic: PROVIDER_TIERS.anthropic } });
     expect(primary.queryByText("Grok")).not.toBeInTheDocument();
-    expect(primary.queryByText("GPT 5.6 Sol")).not.toBeInTheDocument();
+    expect(primary.queryByText("GPT-6 Sol")).not.toBeInTheDocument();
   });
 });
 

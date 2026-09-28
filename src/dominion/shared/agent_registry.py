@@ -43,10 +43,15 @@ PROVIDER_TIERS: dict[str, dict[str, str]] = {
         # a role only reaches it because the author chose it.
         "fable": "claude-fable-5-1",
     },
+    # GPT-6 only, since 2026-09-28. GPT-6 is three models (Luna, Sol, Astra), and OpenAI calls Sol its
+    # MID tier, so it sits at sonnet and the opus band is empty — by the author's choice, over keeping
+    # gpt-5.6-sol there as an older model at twice Sol's price. The gap is safe only because
+    # `resolve_tier_for_provider` never rounds an automatic pick up into fable; without that rule every
+    # preset that asks for opus would quietly draft on Astra. The gpt-5.6 ids live on in
+    # `_LEGACY_OPENAI_MODEL_TO_TIER` below.
     "openai": {
-        "haiku": "gpt-5.6-luna",
-        "sonnet": "gpt-5.6-terra",
-        "opus": "gpt-5.6-sol",
+        "haiku": "gpt-6-luna",
+        "sonnet": "gpt-6-sol",
         "fable": "gpt-6-astra",
     },
     "google": {
@@ -89,10 +94,18 @@ _MODEL_TO_PROVIDER_TIER: dict[str, tuple[str, str]] = {
 # Persisted per-role overrides can outlive the catalog rollout. They continue to route through the
 # OpenAI Responses adapter, retain their original tier semantics, and become selectable as current
 # catalog values on the next explicit settings update.
+#
+# Without an entry here a retired gpt id still ROUTES to OpenAI (llm.py matches the "gpt-" prefix), but
+# `provider_of` labels it Anthropic, so the Desk shows the wrong vendor and tier for a live override.
 _LEGACY_OPENAI_MODEL_TO_TIER: dict[str, tuple[str, str]] = {
     "gpt-5.4-nano": ("openai", "haiku"),
     "gpt-5.4-mini": ("openai", "sonnet"),
     "gpt-5.5": ("openai", "opus"),
+    # Retired from the catalog 2026-09-28 by GPT-6. Saved per-role overrides naming them keep running
+    # until the author re-picks, so they must keep resolving to the vendor and band they were chosen as.
+    "gpt-5.6-luna": ("openai", "haiku"),
+    "gpt-5.6-terra": ("openai", "sonnet"),
+    "gpt-5.6-sol": ("openai", "opus"),
 }
 
 # Maps primary `settings` attribute -> fallback `settings` attribute.
@@ -601,6 +614,11 @@ def resolve_tier_for_provider(tier: str, provider: str) -> str:
     provider with partial coverage still gets a sensible, same-provider model instead of an error
     or a silent switch to a different provider.
 
+    Fable is never a rounding target. It is reachable only by asking for it (or when it is the only
+    model a provider has). OpenAI has no opus model, so "opus" there is equidistant from sonnet and
+    fable, and the tie rule alone would move every preset's opus drafter onto the frontier model at
+    twice the price. A frontier model is the author's pick, never an automatic one.
+
     This is for automatic resolution paths (built-in presets, preset policy hints) where only a
     tier name is known and no human is in the loop to pick a provider. Direct, human-driven picks
     (`set_model`, an explicit `apply_agent_policy` fallback) validate the exact (tier, provider)
@@ -612,8 +630,22 @@ def resolve_tier_for_provider(tier: str, provider: str) -> str:
         return tier
     if not available:
         return tier
+    candidates = [t for t in available if t != "fable"] or list(available)
     target = _TIER_RANK.get(tier, 1)
-    return min(available, key=lambda t: (abs(_TIER_RANK.get(t, 1) - target), -_TIER_RANK.get(t, 1)))
+    return min(candidates, key=lambda t: (abs(_TIER_RANK.get(t, 1) - target), -_TIER_RANK.get(t, 1)))
+
+
+def nearest_model_for_tier(tier: str, provider: str) -> str | None:
+    """The model a SAVED or automatic (tier, provider) pair runs on today.
+
+    A stored fallback tier, a custom preset snapshot, and the length guard's cross-provider remap all
+    name a tier chosen against an older catalog. An exact `model_for_tier` returns None once that slot
+    empties (OpenAI's opus, 2026-09-28), and every one of those callers turned None into "" — silently
+    switching the role's fallback OFF. This resolves to the nearest slot instead, under the same rules
+    as `resolve_tier_for_provider`, so it never lands on fable. A direct human pick still goes through
+    `model_for_tier` and 422s on a missing slot.
+    """
+    return model_for_tier(resolve_tier_for_provider(tier, provider), provider)
 
 
 # Anthropic removed the sampling params (temperature/top_p/top_k) on its flagship models: Opus 4.7+,

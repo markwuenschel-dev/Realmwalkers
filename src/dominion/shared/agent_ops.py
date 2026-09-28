@@ -23,6 +23,7 @@ from dominion.shared.agent_registry import (
     AgentDefinition,
     capability_warnings,
     model_for_tier,
+    nearest_model_for_tier,
     provider_of,
     resolve_tier_for_provider,
     tier_of,
@@ -126,7 +127,7 @@ def _policy_from_live(agent: AgentDefinition, override: AgentPolicyOverride | No
     if override and override.policy_json and override.policy_json.get("fallback_tier"):
         fb_tier = override.policy_json["fallback_tier"]
         fb_provider = override.policy_json.get("fallback_provider") or "anthropic"
-        fallback_model = model_for_tier(fb_tier, fb_provider)
+        fallback_model = nearest_model_for_tier(fb_tier, fb_provider)
     return AgentPolicyOut(
         setting=agent.setting_key,
         primary_tier=tier_of(primary_model),
@@ -298,8 +299,10 @@ async def _apply_snapshot(session: AsyncSession, snapshot: dict[str, Any]) -> No
     providers = snapshot.get("providers") or {}
     for setting_key, tier in tiers.items():
         provider = providers.get(setting_key, "anthropic")
-        if setting_key in {a.setting_key for a in AGENTS} and tier in PROVIDER_TIERS.get(provider, {}):
-            await apply_tier_to_agent(session, setting_key, tier, provider)
+        if setting_key in {a.setting_key for a in AGENTS} and PROVIDER_TIERS.get(provider):
+            # Saved against the catalog of its day: a slot that has since emptied takes the nearest one
+            # rather than silently leaving the role on whatever it was before the preset was applied.
+            await apply_tier_to_agent(session, setting_key, resolve_tier_for_provider(tier, provider), provider)
     policies = snapshot.get("policies") or {}
     for setting_key, pj in policies.items():
         if setting_key not in {a.setting_key for a in AGENTS}:
@@ -314,7 +317,7 @@ async def _apply_snapshot(session: AsyncSession, snapshot: dict[str, Any]) -> No
             fb_provider = pj.get("fallback_provider") or "anthropic"
             attr = FALLBACK_ATTR.get(setting_key)
             if attr:
-                setattr(settings, attr, model_for_tier(fb_tier, fb_provider) or "")
+                setattr(settings, attr, nearest_model_for_tier(fb_tier, fb_provider) or "")
 
 
 def _globals_out(row: AgentOpsState | None) -> AgentGlobalsOut:
@@ -612,7 +615,9 @@ async def apply_model_overrides(session: AsyncSession) -> int:
             fb_provider = pj.get("fallback_provider") or "anthropic"
             attr = FALLBACK_ATTR.get(row.setting_name)
             if attr:
-                setattr(settings, attr, model_for_tier(fb_tier, fb_provider) or "")
+                # Stored by TIER, so it follows the catalog. A slot emptied since it was saved takes the
+                # nearest model — never "" (which switches escalation off without a word).
+                setattr(settings, attr, nearest_model_for_tier(fb_tier, fb_provider) or "")
         applied += 1
     _sync_runtime_policies(policy_map)
     ops_row = await session.get(AgentOpsState, _OPS_STATE_ID)

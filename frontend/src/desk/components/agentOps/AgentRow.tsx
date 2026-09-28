@@ -38,6 +38,10 @@ const PROVIDER_COLOR: Record<string, string> = {
   meta: "#0064E0",
 };
 const MODEL_LABEL: Record<string, string> = {
+  "gpt-6-luna": "GPT-6 Luna",
+  "gpt-6-sol": "GPT-6 Sol",
+  // Retired from the picker by GPT-6. Kept for the fallback chip, which names a saved fallback on one
+  // of these by its own name rather than as the GPT-6 model that now fills its slot.
   "gpt-5.6-luna": "GPT 5.6 Luna",
   "gpt-5.6-terra": "GPT 5.6 Terra",
   "gpt-5.6-sol": "GPT 5.6 Sol",
@@ -127,11 +131,15 @@ export function AgentRow({
   const catalog = modelCatalog(providerTiers);
   // Show the fallback as the actual model (e.g. "Grok", "GPT 5.5") when set, not the raw tier word:
   // the tier vocabulary (haiku/sonnet/opus/fable) is provider-neutral internally but reads as Anthropic-only.
+  // Name the SAVED fallback model first. The catalog lookup only knows which model sits in that
+  // (provider, tier) slot today, so a fallback saved on a retired id (gpt-5.6-terra, now openai/sonnet)
+  // would otherwise be labelled as its replacement (GPT-6 Sol) — a model the agent does not call.
   const fbTier = a.policy.fallback_tier;
   const fbModel =
-    fbTier && a.policy.fallback_provider
+    a.policy.fallback_model ??
+    (fbTier && a.policy.fallback_provider
       ? providerTiers[a.policy.fallback_provider]?.[fbTier]
-      : undefined;
+      : undefined);
   const fbLabel = fbTier
     ? ((fbModel && MODEL_LABEL[fbModel]) ?? TIER_LABEL[fbTier] ?? fbTier)
     : null;
