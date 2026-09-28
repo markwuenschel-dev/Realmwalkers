@@ -15,15 +15,18 @@ from dominion.workers.length.guard import _length_model
 
 def test_length_model_follows_drafter_provider(monkeypatch: pytest.MonkeyPatch):
     # Drafter on OpenAI + length model on its Anthropic default → remap to the same TIER on OpenAI.
-    monkeypatch.setattr(settings, "draft_model", "gpt-5.6-terra")
-    assert _length_model("claude-haiku-4-5") == "gpt-5.6-luna"  # haiku tier on openai
+    monkeypatch.setattr(settings, "draft_model", "gpt-6-sol")
+    assert _length_model("claude-haiku-4-5") == "gpt-6-luna"  # haiku tier on openai
 
 
 def test_length_model_unchanged_when_providers_match(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(settings, "draft_model", "claude-sonnet-5")
     assert _length_model("claude-haiku-4-5") == "claude-haiku-4-5"  # both anthropic → untouched
+    monkeypatch.setattr(settings, "draft_model", "gpt-6-sol")
+    assert _length_model("gpt-6-luna") == "gpt-6-luna"  # both openai → untouched
+    # A saved override on a retired gpt id is still OpenAI (via the legacy map), so it is not remapped.
     monkeypatch.setattr(settings, "draft_model", "gpt-5.6-terra")
-    assert _length_model("gpt-5.6-luna") == "gpt-5.6-luna"  # both openai → untouched
+    assert _length_model("gpt-5.6-luna") == "gpt-5.6-luna"
 
 
 def test_length_model_falls_back_to_configured_when_unmappable(monkeypatch: pytest.MonkeyPatch):
