@@ -5,8 +5,10 @@ from dominion.workers.llm import _is_anthropic_model, _openai_compatible_endpoin
 
 def test_google_provider_catalog_maps_flash_and_pro() -> None:
     assert model_for_tier("sonnet", "google") == "gemini-3.8-flash"
-    assert model_for_tier("opus", "google") == "gemini-3.1-pro-preview"
+    assert model_for_tier("opus", "google") == "gemini-4-argon"
     assert provider_of("gemini-3.8-flash") == "google"
+    assert provider_of("gemini-4-argon") == "google"
+    # Retired 2026-10-29: a saved override naming it is still Google's, through the legacy map.
     assert provider_of("gemini-3.1-pro-preview") == "google"
 
 

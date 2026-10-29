@@ -39,14 +39,17 @@ const PROVIDER_COLOR: Record<string, string> = {
 };
 const MODEL_LABEL: Record<string, string> = {
   "gpt-6-luna": "GPT-6 Luna",
+  "gpt-6.1-terra": "GPT-6.1 Terra",
+  "gpt-6.1-sol": "GPT-6.1 Sol",
+  // Retired from the picker by GPT-6 / GPT-6.1. Kept for the fallback chip, which names a saved fallback
+  // on one of these by its own name rather than as the model that now fills its slot.
   "gpt-6-sol": "GPT-6 Sol",
-  // Retired from the picker by GPT-6. Kept for the fallback chip, which names a saved fallback on one
-  // of these by its own name rather than as the GPT-6 model that now fills its slot.
   "gpt-5.6-luna": "GPT 5.6 Luna",
   "gpt-5.6-terra": "GPT 5.6 Terra",
   "gpt-5.6-sol": "GPT 5.6 Sol",
   "gpt-6-astra": "GPT-6 Astra",
   "gemini-3.8-flash": "Gemini Flash",
+  "gemini-4-argon": "Gemini Argon",
   "gemini-3.1-pro-preview": "Gemini Pro",
   "grok-4.6": "Grok",
   "kimi-k3": "Kimi K3",
