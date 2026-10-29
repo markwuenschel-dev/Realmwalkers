@@ -8,10 +8,14 @@ vi.mock("../../state", () => ({
 }));
 
 const PROVIDER_TIERS: Record<string, Record<string, string>> = {
-  anthropic: { sonnet: "claude-sonnet-5", opus: "claude-opus-latest", fable: "claude-fable-5-1" },
-  // GPT-6 is three models: no opus slot, so OpenAI renders three buttons, not four.
-  openai: { haiku: "gpt-6-luna", sonnet: "gpt-6-sol", fable: "gpt-6-astra" },
-  google: { sonnet: "gemini-3.8-flash", opus: "gemini-3.1-pro-preview" },
+  anthropic: { sonnet: "claude-sonnet-5-5", opus: "claude-opus-5-5", fable: "claude-fable-5-1" },
+  openai: {
+    haiku: "gpt-6-luna",
+    sonnet: "gpt-6.1-terra",
+    opus: "gpt-6.1-sol",
+    fable: "gpt-6-astra",
+  },
+  google: { sonnet: "gemini-3.8-flash", opus: "gemini-4-argon" },
   xai: { opus: "grok-4.6" },
   moonshot: { opus: "kimi-k3" },
   meta: { opus: "muse-spark-1.3" },
@@ -105,7 +109,7 @@ function renderOpen(props: Partial<Parameters<typeof AgentRow>[0]> = {}) {
 }
 
 describe("AgentRow flat model picker", () => {
-  it("shows all 11 models in one row, cheapest tier first, with the frontier tier last per provider", () => {
+  it("shows all 12 models in one row, cheapest tier first, with the frontier tier last per provider", () => {
     const { primary } = renderOpen();
     const buttons = primary
       .getAllByRole("button")
@@ -116,12 +120,13 @@ describe("AgentRow flat model picker", () => {
       "Opus",
       "Fable",
       "GPT-6 Luna",
-      "GPT-6 Sol",
+      "GPT-6.1 Terra",
+      "GPT-6.1 Sol",
       // Labelled, not left to the tier name: without this it would also render "Fable" and collide
       // with Anthropic's button.
       "GPT-6 Astra",
       "Gemini Flash",
-      "Gemini Pro",
+      "Gemini Argon",
       "Grok",
       "Kimi K3",
       "Muse Spark",
@@ -130,7 +135,7 @@ describe("AgentRow flat model picker", () => {
 
   it("picking a model calls onPickTier with its (tier, provider) pair", () => {
     const { onPickTier, primary } = renderOpen();
-    fireEvent.click(primary.getByText("GPT-6 Sol"));
+    fireEvent.click(primary.getByText("GPT-6.1 Terra"));
     expect(onPickTier).toHaveBeenCalledWith("draft_model", "sonnet", "openai");
   });
 
@@ -140,9 +145,9 @@ describe("AgentRow flat model picker", () => {
     expect(onPickTier).toHaveBeenCalledWith("draft_model", "sonnet", "google");
   });
 
-  it("picking Gemini Pro calls onPickTier with google/opus", () => {
+  it("picking Gemini Argon calls onPickTier with google/opus", () => {
     const { onPickTier, primary } = renderOpen();
-    fireEvent.click(primary.getByText("Gemini Pro"));
+    fireEvent.click(primary.getByText("Gemini Argon"));
     expect(onPickTier).toHaveBeenCalledWith("draft_model", "opus", "google");
   });
 
@@ -248,13 +253,13 @@ describe("AgentRow flat model picker", () => {
 
   it("fallback row picks a model with (tier, provider), same as primary", () => {
     const { onSetFallback, fallback } = renderOpen();
-    fireEvent.click(fallback.getByText("GPT-6 Sol"));
-    expect(onSetFallback).toHaveBeenCalledWith("draft_model", "sonnet", "openai");
+    fireEvent.click(fallback.getByText("GPT-6.1 Sol"));
+    expect(onSetFallback).toHaveBeenCalledWith("draft_model", "opus", "openai");
   });
 
   it("names a fallback saved on a retired model by that model, not by what now fills its slot", () => {
-    // gpt-5.6-terra resolves to openai/sonnet, which the catalog now fills with gpt-6-sol. Reading the
-    // label off the slot would tell the author the agent falls back to GPT-6 Sol, which it does not.
+    // gpt-5.6-terra resolves to openai/sonnet, which the catalog now fills with gpt-6.1-terra. Reading
+    // the label off the slot would tell the author the agent falls back to GPT-6.1 Terra, which it does not.
     renderOpen({
       agent: agent({
         policy: {
@@ -266,13 +271,13 @@ describe("AgentRow flat model picker", () => {
       }),
     });
     expect(screen.getByText("fallback: GPT 5.6 Terra")).toBeInTheDocument();
-    expect(screen.queryByText("fallback: GPT-6 Sol")).not.toBeInTheDocument();
+    expect(screen.queryByText("fallback: GPT-6.1 Terra")).not.toBeInTheDocument();
   });
 
   it("only shows models that a partial provider catalog actually offers", () => {
     const { primary } = renderOpen({ providerTiers: { anthropic: PROVIDER_TIERS.anthropic } });
     expect(primary.queryByText("Grok")).not.toBeInTheDocument();
-    expect(primary.queryByText("GPT-6 Sol")).not.toBeInTheDocument();
+    expect(primary.queryByText("GPT-6.1 Sol")).not.toBeInTheDocument();
   });
 });
 

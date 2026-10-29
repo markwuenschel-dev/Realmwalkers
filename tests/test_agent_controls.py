@@ -316,13 +316,12 @@ def test_fable_outranks_opus_and_a_provider_without_one_falls_back_to_opus():
 
 
 def test_no_automatic_resolution_rounds_up_into_fable():
-    """OpenAI has no opus model since GPT-6, so "opus" there is equidistant from sonnet and fable, and
-    the round-up-on-a-tie rule alone would put every preset's opus drafter on gpt-6-astra at twice the
-    price. The frontier band is the author's pick only: no preset, on any provider, may resolve to it."""
+    """Under GPT-6 OpenAI had no opus model, so "opus" there was equidistant from sonnet and fable, and
+    the round-up-on-a-tie rule alone would have put every preset's opus drafter on gpt-6-astra at twice
+    the price. The frontier band is the author's pick only: no preset, on any provider, may resolve to
+    it. (GPT-6.1 refilled that slot; the gap itself is pinned in test_saved_tier_resolution.py.)"""
     from dominion.shared.agent_registry import PRESETS, PROVIDER_TIERS, resolve_tier_for_provider
 
-    assert "opus" not in PROVIDER_TIERS["openai"], "this test guards the OpenAI opus gap; re-check it if filled"
-    assert resolve_tier_for_provider("opus", "openai") == "sonnet"
     for provider in PROVIDER_TIERS:
         for tier in ("haiku", "sonnet", "opus"):
             assert resolve_tier_for_provider(tier, provider) != "fable", f"{tier} on {provider} rounded into fable"
@@ -341,6 +340,16 @@ def test_fable_5_1_takes_effort_despite_not_matching_the_fable_5_entry():
     assert supports_effort("claude-fable-5-1") is True
     # Flagship Anthropic models 400 on `temperature`; the allowlist is deliberately not extended.
     assert supports_temperature("claude-fable-5-1") is False
+
+
+def test_every_anthropic_catalog_model_takes_effort():
+    """The same trap for every model the Anthropic picker offers: the 5.5 ids match neither the
+    "claude-opus-5" nor the "claude-sonnet-5" entry, so each needs its own."""
+    from dominion.shared.agent_registry import PROVIDER_TIERS, supports_effort, supports_temperature
+
+    for model in PROVIDER_TIERS["anthropic"].values():
+        assert supports_effort(model) is True, f"{model} would silently stop receiving `effort`"
+        assert supports_temperature(model) is False, f"{model} would be sent `temperature` and 400"
 
 
 def test_the_frontier_models_are_priced_at_twice_opus():

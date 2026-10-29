@@ -51,6 +51,12 @@ _MODEL_PRICING: dict[str, ModelPricing] = {
     # to the Opus 5 generation today. Keyed separately from "claude-opus-4" because the substring match
     # ("claude-opus-4" in id) does not catch either "claude-opus-5" or "claude-opus-latest".
     "claude-opus-latest": ModelPricing(input=5.0, output=25.0, cache_write=6.25, cache_read=0.50),
+    # The 5.5 generation, in the catalog since 2026-10-29. Rates taken from the qre-theme catalog
+    # (src/review/catalog.ts): Opus 5.5 $4 in / $20 out, Sonnet 5.5 $3 / $15 — Sonnet's standard rate,
+    # its intro $2 / $10 having ended 2026-08-31. Both read cache at 5% of input and write at 1.25x.
+    # Longest-prefix matching keeps these ahead of the "claude-opus-5" / "claude-sonnet-5" rows.
+    "claude-opus-5-5": ModelPricing(input=4.0, output=20.0, cache_write=5.00, cache_read=0.20),
+    "claude-sonnet-5-5": ModelPricing(input=3.0, output=15.0, cache_write=3.75, cache_read=0.15),
     "claude-opus-5": ModelPricing(input=5.0, output=25.0, cache_write=6.25, cache_read=0.50),
     "claude-opus-4-8": ModelPricing(input=5.0, output=25.0, cache_write=6.25, cache_read=0.50),
     # Opus 4.7 and older still bill at the pre-4.8 flagship rate. Longest-prefix matching puts the
@@ -75,8 +81,12 @@ _MODEL_PRICING: dict[str, ModelPricing] = {
     # at read time, so the rate below is the one actually billed today; revisit this entry in January or
     # every Gemini row in the book's history silently re-prices at half what it cost.
     "gemini-3.8-flash": ModelPricing(input=0.75, output=3.75, cache_write=0.075, cache_read=0.075),
+    # Gemini 4 Argon, the opus slot since 2026-10-29: $2 in / $10 out / $0.10 cache read, from the
+    # qre-theme catalog. cache_write mirrors cache_read, as for every Gemini row here.
+    "gemini-4-argon": ModelPricing(input=2.0, output=10.0, cache_write=0.10, cache_read=0.10),
     # Retired from the catalog 2026-09-20 (replaced by 3.8 Flash); kept so existing rows price correctly.
     "gemini-3.5-flash": ModelPricing(input=0.30, output=2.50, cache_write=0.03, cache_read=0.03),
+    # Retired from the catalog 2026-10-29 (replaced by 4 Argon); kept so existing rows price correctly.
     "gemini-3.1-pro-preview": ModelPricing(input=1.25, output=10.0, cache_write=0.25, cache_read=0.25),
     # OpenAI rates supplied by the owner on 2026-09-18, STANDARD tier. OpenAI charges a second, higher
     # tier above a 272k-token context (2x input and cache, 1.5x output, on the WHOLE request, confirmed
@@ -93,6 +103,11 @@ _MODEL_PRICING: dict[str, ModelPricing] = {
     # two ratios by analogy. That is not idle — `telemetry_cost` prices every cached token at these
     # rates. The Batch/Flex 50% discount is not modelled because nothing here sends a `service_tier`.
     "gpt-6-sol": ModelPricing(input=2.0, output=10.0, cache_write=2.50, cache_read=0.20),
+    # GPT-6.1 Sol and Terra, in the catalog since 2026-10-29, rates from the qre-theme catalog. Sol keeps
+    # GPT-6 Sol's price. Terra is $1 in / $5 out, $0.05 cache read, $1.25 for the 30-minute cache write
+    # (its 12-hour write is $2.50; nothing here requests that retention).
+    "gpt-6.1-sol": ModelPricing(input=2.0, output=10.0, cache_write=2.50, cache_read=0.20),
+    "gpt-6.1-terra": ModelPricing(input=1.0, output=5.0, cache_write=1.25, cache_read=0.05),
     "gpt-6-luna": ModelPricing(input=0.10, output=0.50, cache_write=0.125, cache_read=0.01),
     "gpt-5.6-sol": ModelPricing(input=4.0, output=20.0, cache_write=5.00, cache_read=0.40),
     "gpt-5.6-terra": ModelPricing(input=2.0, output=12.0, cache_write=2.50, cache_read=0.20),

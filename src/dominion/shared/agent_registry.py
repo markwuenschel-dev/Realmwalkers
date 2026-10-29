@@ -23,7 +23,7 @@ SpeedBand = Literal["fast", "medium", "slow"]
 # Per-provider tier -> model id. Providers fill in whichever tiers they have a model for; a provider
 # that ships a single general model is slotted at "opus" — not "fable", which is reserved for a
 # vendor's explicit frontier model — because the tier names a QUALITY band, not a
-# price band (grok-4.6 costs less than claude-sonnet-5 and is still that provider's flagship).
+# price band (grok-4.6 costs less than claude-sonnet-5-5 and is still that provider's flagship).
 # `resolve_tier_for_provider` handles the gaps, so partial coverage is normal, not a defect.
 # Typed as plain str keys (not Provider/Tier) so it assigns directly into the dict[str, dict[str, str]]
 # API schemas below without invariance friction.
@@ -34,29 +34,31 @@ SpeedBand = Literal["fast", "medium", "slow"]
 # substring fallback below, so existing settings and 59 historical telemetry rows keep working.
 PROVIDER_TIERS: dict[str, dict[str, str]] = {
     "anthropic": {
-        "sonnet": "claude-sonnet-5",
-        # Floating alias, not a pinned snapshot: Anthropic moves it to each new Opus generation, so the
-        # app follows without an edit. The trade is that the model (and its price) can change under a
-        # running book — `model_pricing` carries an explicit entry so cost never falls to the default.
-        "opus": "claude-opus-latest",
+        # The 5.5 generation since 2026-10-29, matching the qre-theme catalog. Opus is a pinned snapshot
+        # again rather than the `claude-opus-latest` alias: the alias moved to Opus 5.5 at $4/$20 while
+        # its price row still bills Opus 5's $5/$25, and a pinned id is the only way the price and the
+        # model cannot drift apart. The older ids keep resolving through `provider_and_tier_of`'s
+        # substring fallback, so saved settings naming them keep their vendor and band.
+        "sonnet": "claude-sonnet-5-5",
+        "opus": "claude-opus-5-5",
         # The frontier tier. Twice Opus's price, for the hardest long-running work — never a default;
         # a role only reaches it because the author chose it.
         "fable": "claude-fable-5-1",
     },
-    # GPT-6 only, since 2026-09-28. GPT-6 is three models (Luna, Sol, Astra), and OpenAI calls Sol its
-    # MID tier, so it sits at sonnet and the opus band is empty — by the author's choice, over keeping
-    # gpt-5.6-sol there as an older model at twice Sol's price. The gap is safe only because
-    # `resolve_tier_for_provider` never rounds an automatic pick up into fable; without that rule every
-    # preset that asks for opus would quietly draft on Astra. The gpt-5.6 ids live on in
-    # `_LEGACY_OPENAI_MODEL_TO_TIER` below.
+    # GPT-6.1 fills all four bands, since 2026-10-29: Luna < Terra < Sol < Astra by price ($0.10,
+    # $1, $2, $10 in), the same Luna/Terra/Sol ladder GPT-5.6 had plus the frontier model. GPT-6 left
+    # the opus band empty (no Terra, so Sol sat at sonnet); 6.1 brings Terra back, so Sol moves up to
+    # opus and Terra takes sonnet. Luna and Astra are unchanged GPT-6 ids. Retired ids live on in
+    # `_LEGACY_MODEL_TO_PROVIDER_TIER` below.
     "openai": {
         "haiku": "gpt-6-luna",
-        "sonnet": "gpt-6-sol",
+        "sonnet": "gpt-6.1-terra",
+        "opus": "gpt-6.1-sol",
         "fable": "gpt-6-astra",
     },
     "google": {
         "sonnet": "gemini-3.8-flash",
-        "opus": "gemini-3.1-pro-preview",
+        "opus": "gemini-4-argon",
     },
     "xai": {
         "opus": "grok-4.6",
@@ -91,13 +93,14 @@ _MODEL_TO_PROVIDER_TIER: dict[str, tuple[str, str]] = {
     model: (provider, tier) for provider, tiers in PROVIDER_TIERS.items() for tier, model in tiers.items()
 }
 
-# Persisted per-role overrides can outlive the catalog rollout. They continue to route through the
-# OpenAI Responses adapter, retain their original tier semantics, and become selectable as current
-# catalog values on the next explicit settings update.
+# Persisted per-role overrides can outlive the catalog rollout. They keep routing to their own vendor,
+# retain their original tier semantics, and become selectable as current catalog values on the next
+# explicit settings update.
 #
-# Without an entry here a retired gpt id still ROUTES to OpenAI (llm.py matches the "gpt-" prefix), but
-# `provider_of` labels it Anthropic, so the Desk shows the wrong vendor and tier for a live override.
-_LEGACY_OPENAI_MODEL_TO_TIER: dict[str, tuple[str, str]] = {
+# Without an entry here a retired non-Anthropic id still ROUTES correctly (llm.py matches the "gpt-" /
+# "gemini-" prefix), but `provider_of` labels it Anthropic, so the Desk shows the wrong vendor and tier
+# for a live override. Retired Anthropic ids need no entry: the substring fallback resolves them.
+_LEGACY_MODEL_TO_PROVIDER_TIER: dict[str, tuple[str, str]] = {
     "gpt-5.4-nano": ("openai", "haiku"),
     "gpt-5.4-mini": ("openai", "sonnet"),
     "gpt-5.5": ("openai", "opus"),
@@ -106,6 +109,9 @@ _LEGACY_OPENAI_MODEL_TO_TIER: dict[str, tuple[str, str]] = {
     "gpt-5.6-luna": ("openai", "haiku"),
     "gpt-5.6-terra": ("openai", "sonnet"),
     "gpt-5.6-sol": ("openai", "opus"),
+    # Retired from the catalog 2026-10-29 by GPT-6.1 Sol / Gemini 4 Argon, each in the band it held.
+    "gpt-6-sol": ("openai", "sonnet"),
+    "gemini-3.1-pro-preview": ("google", "opus"),
 }
 
 # Maps primary `settings` attribute -> fallback `settings` attribute.
@@ -575,7 +581,7 @@ def provider_and_tier_of(model_id: str | None) -> tuple[str, str] | None:
     hit = _MODEL_TO_PROVIDER_TIER.get(model_id or "")
     if hit is not None:
         return hit
-    legacy_hit = _LEGACY_OPENAI_MODEL_TO_TIER.get(model_id or "")
+    legacy_hit = _LEGACY_MODEL_TO_PROVIDER_TIER.get(model_id or "")
     if legacy_hit is not None:
         return legacy_hit
     # Strongest first: a dated id like "claude-fable-5-1-20260915" must match "fable" and stop, and
@@ -615,9 +621,10 @@ def resolve_tier_for_provider(tier: str, provider: str) -> str:
     or a silent switch to a different provider.
 
     Fable is never a rounding target. It is reachable only by asking for it (or when it is the only
-    model a provider has). OpenAI has no opus model, so "opus" there is equidistant from sonnet and
-    fable, and the tie rule alone would move every preset's opus drafter onto the frontier model at
-    twice the price. A frontier model is the author's pick, never an automatic one.
+    model a provider has). When a provider has no opus model (OpenAI under GPT-6, 2026-09-28 to
+    2026-10-29), "opus" is equidistant from sonnet and fable, and the tie rule alone would move every
+    preset's opus drafter onto the frontier model at twice the price. A frontier model is the author's
+    pick, never an automatic one.
 
     This is for automatic resolution paths (built-in presets, preset policy hints) where only a
     tier name is known and no human is in the loop to pick a provider. Direct, human-driven picks
@@ -682,11 +689,13 @@ _ANTHROPIC_EFFORT_MODELS: frozenset[str] = frozenset(
         # strongest model in the app. Every Opus from 4.5 up takes the param, so the alias is safe to
         # list while it points at an Opus generation.
         "claude-opus-latest",
+        "claude-opus-5-5",
         "claude-opus-5",
         "claude-opus-4-8",
         "claude-opus-4-7",
         "claude-opus-4-6",
         "claude-opus-4-5",
+        "claude-sonnet-5-5",
         "claude-sonnet-5",
         "claude-sonnet-4-6",
         "claude-fable-5-1",

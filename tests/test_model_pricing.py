@@ -63,6 +63,23 @@ def test_gpt_6_family_has_its_own_rates():
     assert _cost_of_a_big_call("gpt-6-sol") == 3.0
 
 
+def test_the_2026_10_29_catalog_ids_have_their_own_rates():
+    """Every id the picker gained from the qre-theme catalog. Each shares a prefix with an older row
+    ("claude-opus-5", "claude-sonnet-5") or none at all, so without its own entry it bills at the
+    older generation's rate or at the Sonnet fallback."""
+    assert pricing_for_model("claude-opus-5-5") == ModelPricing(
+        input=4.0, output=20.0, cache_write=5.00, cache_read=0.20
+    )
+    assert pricing_for_model("claude-sonnet-5-5") == ModelPricing(
+        input=3.0, output=15.0, cache_write=3.75, cache_read=0.15
+    )
+    assert pricing_for_model("gpt-6.1-sol") == ModelPricing(input=2.0, output=10.0, cache_write=2.50, cache_read=0.20)
+    assert pricing_for_model("gpt-6.1-terra") == ModelPricing(input=1.0, output=5.0, cache_write=1.25, cache_read=0.05)
+    assert pricing_for_model("gemini-4-argon") == ModelPricing(
+        input=2.0, output=10.0, cache_write=0.10, cache_read=0.10
+    )
+
+
 def test_no_configured_budget_reaches_openai_long_context_pricing():
     """The gpt rates are the standard tier. If a budget ever crosses OpenAI's long-context threshold,
     the table starts under-pricing real calls — so that change has to fail here first."""
