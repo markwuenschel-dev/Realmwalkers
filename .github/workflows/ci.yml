@@ -133,7 +133,7 @@ jobs:
           --health-retries 15
     env:
       UV_PYTHON: "3.14"
-      # conftest.py points the app at a dedicated test DB it creates/truncates itself.
+      # conftest.py creates a dedicated test DB per worker because tests truncate tables.
       DOMINION_TEST_DATABASE_URL: postgresql+asyncpg://dominion:dominion@127.0.0.1:5432/dominion_test
       # Turn the "Postgres unreachable -> skip" fixture behaviour into a hard failure in CI, so a
       # broken DB service can never produce a falsely-green run.
@@ -151,7 +151,7 @@ jobs:
         # --no-sync runs in the env we just synced (no rebuild); -rs surfaces skips, which
         # DOMINION_REQUIRE_DB forbids. Coverage is measured (term-missing) but not gated: no
         # --cov-fail-under yet — that's a deliberate follow-up once a real baseline is measured.
-        run: uv run --no-sync pytest -q -rs --cov=dominion --cov-report=term-missing
+        run: uv run --no-sync pytest -n auto -q -rs --cov=dominion --cov-report=term-missing
 
   # ---- frontend: OpenAPI codegen drift + typecheck + lint + format + unit + production build.
   # e2e is full-tier only. ----

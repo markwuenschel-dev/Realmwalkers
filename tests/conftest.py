@@ -18,6 +18,10 @@ _TEST_URL = os.environ.get(
     "DOMINION_TEST_DATABASE_URL",
     "postgresql+asyncpg://dominion:dominion@127.0.0.1:5433/dominion_test",
 )
+# xdist sets this before importing conftest in each worker. Separate databases keep one
+# worker's TRUNCATE from affecting another worker's app and tests.
+if _worker_id := os.environ.get("PYTEST_XDIST_WORKER"):
+    _TEST_URL = f"{_TEST_URL}_{_worker_id}"
 os.environ["DOMINION_DATABASE_URL"] = _TEST_URL
 # Tests must NEVER touch the network. With a real OPENAI_API_KEY in the developer's .env and the
 # default provider "openai", every canon/retrieval test was silently making LIVE OpenAI embedding
@@ -164,7 +168,7 @@ async def seed_scene_packet(s, *, chapter, beat, body: dict | None = None):
     return sp
 
 
-# Schema setup runs ONCE per pytest run, not once per test. The old per-test version rebuilt the
+# Schema setup runs once per process, including each xdist worker. The old per-test version rebuilt the
 # world for every DB test (maintenance-engine probe + CREATE EXTENSION + full create_all + every
 # lightweight migration + truncate + two engine disposals) — ~0.2s each on CI's local socket but
 # ~2s each on Windows/Docker, which turned the full suite from ~1 minute into 8-9. Per-test
