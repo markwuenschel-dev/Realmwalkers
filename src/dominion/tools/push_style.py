@@ -5,7 +5,7 @@
     python -m dominion.tools.push_style --sql               # emit SQL instead of connecting
 
 WHY THIS EXISTS. `series/` is gitignored on purpose — creative content does not go to GitHub or the
-deploy box. Deploy is a `git pull`, so the style guides can never arrive that way, and any loader that
+image. A deployed image is built from the repo, so the style guides can never arrive that way, and any loader that
 reads them from disk is silently inert in production. The content has to travel by a different road,
 and Postgres is the road that already exists: the canon RAG index lives there.
 

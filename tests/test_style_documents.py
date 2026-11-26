@@ -1,7 +1,7 @@
 """Style guides resolve from Postgres, so the deployed drafter is not running unconstrained.
 
-THE FAILURE THIS CLOSES IS A SILENT ONE. `series/` is gitignored by policy and deploy is a `git pull`,
-so a style guide read from disk is present on the author's machine and absent on the box. The loader
+THE FAILURE THIS CLOSES IS A SILENT ONE. `series/` is gitignored by policy and excluded from the image,
+so a style guide read from disk is present on the author's machine and absent in a deployment. The loader
 returned None, the drafter ran without the constraint, and nothing reported anything. Working locally
 and inert in production, with identical logs — the hardest shape of failure to notice.
 
@@ -57,7 +57,7 @@ async def test_disk_is_the_fallback_when_nothing_was_pushed(db_factory, tmp_path
 
 
 async def test_neither_source_returns_none_and_does_not_raise(db_factory, tmp_path):
-    """The box's state before anything is pushed. Must degrade, never fail a draft."""
+    """A deployment's state before anything is pushed. Must degrade, never fail a draft."""
     async with db_factory() as s:
         assert await load_style_document(s, str(tmp_path / "absent.md")) is None
 
@@ -208,7 +208,7 @@ async def test_disk_content_is_normalised_too(tmp_path, db_factory):
 
 
 # --- the fail-closed half ---------------------------------------------------------------------
-# Resolving from Postgres stops the box drafting against nothing. This stops it drafting SILENTLY
+# Resolving from Postgres stops a deployment drafting against nothing. This stops it drafting SILENTLY
 # against nothing: the absence becomes a blocker the Desk renders, not a warning nobody queries.
 
 
@@ -231,7 +231,7 @@ async def test_required_documents_present_in_the_database_report_nothing_missing
 
 
 async def test_a_required_document_in_neither_source_is_reported(db_factory, tmp_path, monkeypatch):
-    """The deploy box's actual state on 2026-08-28: drift pushed, dialogue rules not."""
+    """The former shared-box's actual state on 2026-08-28: drift pushed, dialogue rules not."""
     from dominion.shared.config import settings
     from dominion.workers.context.style_source import missing_required_style_documents
 
@@ -249,7 +249,7 @@ async def test_a_required_document_in_neither_source_is_reported(db_factory, tmp
 
 
 async def test_a_document_present_only_on_disk_satisfies_the_requirement(db_factory, tmp_path, monkeypatch):
-    """Local development must not be blocked by a gate written for the deploy box."""
+    """Local development must not be blocked by a gate written for deployed environments."""
     from dominion.shared.config import settings
     from dominion.workers.context.style_source import missing_required_style_documents
 

@@ -7,7 +7,7 @@ WRITES no table — nothing persists, so there is no adoption, fingerprint, or s
 about. Landing the result as a scene is a separate, later decision.
 
 It does take a session, for one read: the dialogue rules. They live in `style_documents` because
-`series/` never reaches the deploy box, and the dialogue lane without its rules is the lane with the
+`series/` is never in a deployed image, and the dialogue lane without its rules is the lane with the
 one thing that defines it removed — the same silent production failure the drafting path had.
 """
 

@@ -2,7 +2,7 @@
 
 It returned `latest_chapter_draft_qa(run_id)` — the newest QA artifact that ALREADY EXISTS — and only
 raised when that came back None. So the refusal was only ever visible on a run that had never
-assembled. On a run that has assembled before (the real ones on the box carry 26-28 QA versions), a
+assembled. On a run that has assembled before (the real ones on the former shared-box carried 26-28 QA versions), a
 later refusal still found an artifact, returned it 200, and the Desk announced "Chapter QA v28
 written" for a call that wrote nothing and left the run parked.
 

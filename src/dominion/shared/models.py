@@ -958,8 +958,8 @@ class StyleDocument(Base):
     """A style or canon document, served from Postgres rather than from disk.
 
     The style guides (`forbidden_drift.md`, `voice_guide.md`, …) live under `series/`, which is
-    gitignored by deliberate policy — creative content does not go to GitHub or the deploy box. Deploy
-    is a `git pull`, so those files can never reach the server, and anything that reads them from disk
+    gitignored by deliberate policy — creative content does not go to GitHub or into the image. A
+    deployed image is built from the repo, so those files are never in it, and anything that reads them from disk
     is silently inert in production while working perfectly on the author's machine.
 
     This is the seam that fixes that. Content is pushed into the database (the same place the canon RAG

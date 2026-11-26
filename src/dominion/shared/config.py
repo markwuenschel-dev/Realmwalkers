@@ -281,7 +281,7 @@ class Settings(BaseSettings):
     # fallback in Settings to change that.
     #
     # It shipped as claude-opus-latest, which was the better voice-matcher and a worse default: the
-    # deploy box's Anthropic balance was empty, so the very first press returned a 500. Every other
+    # then-deployed environment's Anthropic balance was empty, so the very first press returned a 500. Every other
     # role runs on OpenAI, so nothing had ever exercised that key. A default must work on the
     # credentials a deployment actually has; Opus stays one click away in the Settings picker.
     prose_suggestion_model: str = "gpt-6.1-sol"
