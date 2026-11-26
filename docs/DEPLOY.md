@@ -1,74 +1,33 @@
-# Deploy — shared AWS box (Docker Compose + Caddy)
+# Deploy
 
-Realmwalkers no longer runs on Railway. It's now **one service in a shared single-box stack**: an AWS
-EC2 instance running one Docker Compose project, a Caddy reverse proxy on the one public IP, and one
-Postgres+pgvector shared across the box's apps. All app↔DB traffic stays on the box's internal Docker
-network, so there's no metered egress (the ~$138 Railway egress surprise is structurally impossible here).
+No deploy target; shared-box decommissioned 2026-11-26.
+
+## What this repo provides
 
 The app still ships as **one container**: the Dockerfile builds the Next.js frontend (standalone output)
 and runs FastAPI alongside it. The browser loads the desk from Next and calls same-origin `/api/desk/*`,
 which the Next BFF proxies to FastAPI — so there's no separate API URL, no CORS, and no `localhost`.
 
-The deploy config lives in the **[`infra`](https://github.com/markwuenschel-dev/infra)** repo, not here.
-This repo only provides the `Dockerfile` that Compose builds.
+## What the container reads
 
-## Where it runs
-- **Box:** EC2 `i-018796c951839031d` (t4g.small, us-east-1), Elastic IP `44.198.76.44`. Current IP via
-  `aws ec2 describe-instances --filters Name=tag:Name,Values=shared-box --query 'Reservations[].Instances[].PublicIpAddress'`.
-- **On-box layout:** apps are cloned as siblings under `/opt/stack/` (`/opt/stack/Realmwalkers`), with the
-  Compose project + `Caddyfile` + env files in `/opt/stack/infra`.
-- **URL:** `https://realmwalkers.44-198-76-44.nip.io`. nip.io is wildcard DNS — `*.44-198-76-44.nip.io`
-  always resolves to the Elastic IP — so Caddy auto-issues a real Let's Encrypt cert per hostname (HTTP-01
-  over port 80) with **no registered domain**. When a domain is registered, point its A record at the IP
-  and swap the host in `infra/Caddyfile`.
-
-## How Realmwalkers is wired (in `infra/docker-compose.yml`)
-- **Service `realmwalkers`** — `build: ../Realmwalkers` (this repo's `Dockerfile`), listens on `:3000`, on
-  both the `edge` (↔ Caddy) and `data` (↔ Postgres) networks. Only Caddy publishes ports (80/443); the app
-  is never directly exposed.
-- **Database** — the shared `postgres` service is `pgvector/pgvector:pg16`. Compose injects
-  `DOMINION_DATABASE_URL=postgresql+asyncpg://app:<pw>@postgres:5432/realmwalkers_book1` (private,
-  internal-only — `config.py` reads `DOMINION_DATABASE_URL`, falling back to a bare `DATABASE_URL`).
-  **The database is `realmwalkers_book1`.** Name it explicitly whenever you `psql` on the box —
-  `infra/docker-compose.yml` is the source of truth for it. This repo's `scripts/init_db.py` creates the
-  `vector` extension and all tables on **every** container boot (idempotent — it's the Dockerfile's
-  `CMD`), so the schema self-heals; only the database itself has to pre-exist.
-  - The database itself is created **once**, on the first boot of an empty Postgres volume, by
-    `infra/initdb/01-create-databases.sh` — which creates `realmwalkers_book1` and enables `vector` on
-    it. Because that script runs only on an empty volume, a name that disagrees with
-    `DOMINION_DATABASE_URL` is invisible on an existing box and only surfaces on a fresh standup, where
-    the app comes up against a database that does not exist. **Change both places together.**
-- **Secrets** — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc. live in `infra/env/realmwalkers.env` on the box
-  (gitignored). `DOMINION_DATABASE_URL` and `PORT` are injected by Compose — do **not** set them there.
-  `OPENAI_API_KEY` / `XAI_API_KEY` are **required** to pick an OpenAI (`gpt-*`) or Grok (`grok-*`) model in
-  the Settings picker; `OPENAI_API_KEY` also switches embeddings from the hash fallback to real OpenAI
-  vectors. Optional model overrides: `DOMINION_DRAFT_MODEL`, `DOMINION_REVIEW_MODEL`, `DOMINION_ENRICH_MODEL`.
-
-## Deploy / redeploy (the day-to-day loop)
-```bash
-ssh -i ~/.ssh/shared-box.pem ubuntu@44.198.76.44          # current Elastic IP
-cd /opt/stack/Realmwalkers && git pull                    # latest main
-cd /opt/stack/infra && docker compose up -d --build realmwalkers
-docker compose logs --tail=80 realmwalkers                # init_db (tables) → hypercorn (FastAPI) → next
-```
-Only `realmwalkers` rebuilds; Postgres, Caddy, and the other apps stay up. Roll back with
-`git checkout <prev-sha>` then the same `up -d --build`. First-time box standup is in the infra repo's
-[`PROVISION.md`](https://github.com/markwuenschel-dev/infra/blob/main/PROVISION.md).
+- **Database** — `config.py` reads `DOMINION_DATABASE_URL`, falling back to a bare `DATABASE_URL`. This
+  repo's `scripts/init_db.py` creates the `vector` extension and all tables on **every** container boot
+  (idempotent — it's the Dockerfile's `CMD`), so the schema self-heals; only the database itself has to
+  pre-exist.
+- **Secrets** — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc. `OPENAI_API_KEY` / `XAI_API_KEY` are
+  **required** to pick an OpenAI (`gpt-*`) or Grok (`grok-*`) model in the Settings picker;
+  `OPENAI_API_KEY` also switches embeddings from the hash fallback to real OpenAI vectors. Optional model
+  overrides: `DOMINION_DRAFT_MODEL`, `DOMINION_REVIEW_MODEL`, `DOMINION_ENRICH_MODEL`.
 
 ## Notes
+
 - **Drafting** runs as a background task in the web service (the browser-driven `/jobs/draft-next` drain),
-  so no separate worker service is required. The container is `restart: unless-stopped` and the box stays
-  warm, so background drafts finish.
-- **A fresh box starts with an empty `realmwalkers_book1` db** — scenes/books are **not** copied up
-  automatically. To migrate existing data: `pg_dump` the old source and restore into the `postgres`
-  container's `realmwalkers_book1` db.
+  so no separate worker service is required.
 - **Push the style documents, or drafting refuses to run.** `series/` is gitignored and excluded from the
-  image, so on the box the style guidance exists only in the `style_documents` table. `python -m
-  dominion.tools.push_style` writes them there. Two of them — `forbidden_drift` and `dialogue_rules` —
-  are a fail-closed draft gate (`workers/context/style_source.py`): without them `can_draft` is false and
-  the Desk's Draft button stays disabled, because a draft generated without its guidance looks identical
-  to a good one at every other surface. The Edit desk's audit reads those plus `prose_clarity_rules`,
-  `prose_contract` and `voice_guide`, and returns 503 when none are present. This is a **data** step, not
-  a code step: a deploy alone never carries it.
-- **Cost:** a flat EC2 bill (t4g.small) shared across all four apps on the box, plus your own Anthropic API
-  usage — no per-service or egress metering.
+  image, so in a deployed container the style guidance exists only in the `style_documents` table.
+  `python -m dominion.tools.push_style` writes them there. Two of them — `forbidden_drift` and
+  `dialogue_rules` — are a fail-closed draft gate (`workers/context/style_source.py`): without them
+  `can_draft` is false and the Desk's Draft button stays disabled, because a draft generated without its
+  guidance looks identical to a good one at every other surface. The Edit desk's audit reads those plus
+  `prose_clarity_rules`, `prose_contract` and `voice_guide`, and returns 503 when none are present. This is
+  a **data** step, not a code step: a deploy alone never carries it.

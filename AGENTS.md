@@ -48,6 +48,13 @@ When the owner explicitly says **ship it** (or runs the ship command), run the f
 10. **Fast-forward local `main`** to match GitHub after merge.
 11. **Report** — PR URL, merge SHA, branches deleted.
 
+If the shipped change includes manuscript scenes (`book1/manuscript/scenes/`) or canon
+(`series/canon/`), the seed/ingest step (`python -m dominion.workers.memory.seed`, run inside
+the container — it is idempotent) is what makes them live in the app. Don't run it silently
+— it spends Anthropic tokens on the summary fold. Say in the report whether
+it's needed, and run it only if the user asked for it (in this invocation or a standing
+instruction).
+
 See [`.claude/commands/ship.md`](.claude/commands/ship.md) for token/auth details in this environment.
 
 ### Never
