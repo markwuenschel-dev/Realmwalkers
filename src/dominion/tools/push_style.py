@@ -10,7 +10,8 @@ reads them from disk is silently inert in production. The content has to travel 
 and Postgres is the road that already exists: the canon RAG index lives there.
 
 `--sql` is the mode that matters for deploying. When the target database is not reachable from a
-laptop, emit SQL locally and pipe it into psql wherever the database is reachable. The *file* never lands on the server filesystem — only its content, into the database, which is
+laptop, emit SQL locally and pipe it into psql wherever the database is reachable. The *file* never
+lands on the server filesystem — only its content, into the database, which is
 where canon already is. That keeps the local-only rule intact rather than punching a hole in it.
 
 Idempotent by slug: pushing twice is a no-op on unchanged content and an update on changed content.
@@ -123,7 +124,7 @@ def main() -> None:
     parser.add_argument(
         "--sql",
         action="store_true",
-        help="emit idempotent upsert SQL on stdout instead of connecting — pipe this to psql against the target database",
+        help="emit idempotent upsert SQL on stdout instead of connecting — pipe this to psql on the target database",
     )
     asyncio.run(_run(parser.parse_args()))
 
