@@ -7,7 +7,7 @@ suggestions the author accepts or rejects one at a time, and the text on the pag
 anything but a human.
 
 It takes a session for two purposes. The first is reading the style documents: they live in
-`style_documents` because `series/` never reaches the deploy box, and an audit without its standards
+`style_documents` because `series/` is never in a deployed image, and an audit without its standards
 is not a weaker audit but a different tool entirely — a general writing coach, which is precisely what
 the author's rules exist to not be. `standards_loaded` reports which ones arrived, so a degraded run
 is legible instead of silent.

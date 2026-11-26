@@ -432,7 +432,7 @@ def test_one_fact_exposed_in_two_fields_reports_both_once_each():
 
 
 # --- gate 0: style guidance (environment fault) ----------------------------------------------------
-# `series/` is gitignored and deploy is a `git pull`, so on the box these documents exist only in
+# `series/` is gitignored and excluded from the image, so in a deployment these documents exist only in
 # `style_documents`. When they are absent the drafter still runs and still returns prose, with the
 # constraint block silently omitted — indistinguishable from success at every other surface. Observed
 # in production 2026-08-28: dialogue rules missing, drafts continuing, one unstructured print.

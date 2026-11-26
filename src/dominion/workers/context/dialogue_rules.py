@@ -2,7 +2,7 @@ r"""Load and scope the authoritative dialogue rules: Postgres first, disk second
 
 This module used to read `settings.dialogue_rules_path` off the filesystem and nothing else. That
 works on the author's machine and is **silently inert in production**: `series/` is gitignored by
-deliberate policy, deploy is a `git pull`, so the file simply is not on the box. The loader returned
+deliberate policy and excluded from the image, so the file simply is not deployed. The loader returned
 None, `assemble_context` put None into `SceneContext.dialogue_rules`, and `drafter.py`'s
 `if ctx.dialogue_rules:` skipped the block — every deployed draft ran with no dialogue rules at all,
 announced by one unstructured `print()` per process and nothing else.

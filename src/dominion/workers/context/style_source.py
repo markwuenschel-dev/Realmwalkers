@@ -1,14 +1,14 @@
 """Resolve a style document from Postgres first, then from disk.
 
 THE PROBLEM THIS EXISTS TO FIX. The style guides live under `series/`, which is gitignored by
-deliberate policy — creative content does not go to GitHub or the deploy box. Deploy is a `git pull`.
+deliberate policy — creative content does not go to GitHub or into the image.
 So every loader that reads a style guide from disk works perfectly on the author's machine and is
 **silently inert in production**: the read returns None, the drafter runs without the constraint,
 and nothing anywhere reports a problem. That is the worst shape a failure can take — it looks
 identical to working.
 
 Reading the database first closes it. Postgres is already where the canon RAG index lives, it is
-already per-environment, and content can be pushed into it without a file ever landing on the box.
+already per-environment, and content can be pushed into it without a file ever landing in a deployment.
 
 DISK REMAINS THE FALLBACK, and the order matters. On the author's machine the file is the thing he
 edits; if the database copy is stale, he would rather draft against what he just wrote than against
@@ -61,8 +61,8 @@ def normalise_newlines(text: str) -> str:
 
 
 def read_from_disk(path: str) -> str | None:
-    """Read a style document from the working tree. None when absent — which is the normal state on
-    the deploy box, not an error."""
+    """Read a style document from the working tree. None when absent — which is the normal state in
+    a deployed environment, not an error."""
     configured = Path(path)
     candidates = [configured] if configured.is_absolute() else [_PROJECT_ROOT / configured, Path.cwd() / configured]
     for candidate in candidates:
@@ -96,7 +96,7 @@ def required_style_document_paths() -> tuple[str, ...]:
 async def missing_required_style_documents(session: AsyncSession) -> tuple[str, ...]:
     """Slugs of the required style documents present in NEITHER Postgres nor disk.
 
-    This is the fail-closed half of the fix. Reading Postgres first stops the deploy box drafting
+    This is the fail-closed half of the fix. Reading Postgres first stops a deployment drafting
     against nothing; this stops it drafting *silently* against nothing, by turning the absence into a
     blocker the Desk renders instead of a warning nobody queries. Returns slugs (not paths) because
     the slug is what `push_style` writes and what the operator must go create.

@@ -38,7 +38,7 @@ prose, so body-matching would keep everything.
 
 FAIL SOFT, ALWAYS. Drift guidance improves prose; its absence must never fail a draft. Resolution and
 its absence-handling belong to `style_source.load_style_document`, which reads Postgres before disk
-because `series/` is gitignored and never reaches the deploy box. Same contract `dialogue_rules.py`
+because `series/` is gitignored and never in a deployed image. Same contract `dialogue_rules.py`
 holds.
 """
 

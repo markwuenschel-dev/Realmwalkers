@@ -2,8 +2,8 @@
 
 THE FAILURE THIS CLOSES IS THE SAME SILENT ONE `test_style_documents.py` describes, one document
 later. `forbidden_drift` was routed through `load_style_document`; `dialogue_rules` was not, and kept
-reading `series/style/dialogue_rules.md` off disk. `series/` is gitignored and deploy is a `git pull`,
-so on the box that file does not exist: the loader returned None, `assemble_context` put None into
+reading `series/style/dialogue_rules.md` off disk. `series/` is gitignored and excluded from the image,
+so in a deployment that file does not exist: the loader returned None, `assemble_context` put None into
 `SceneContext.dialogue_rules`, `drafter.py`'s `if ctx.dialogue_rules:` skipped the block, and every
 deployed draft wrote dialogue with no rules at all. Observed in production on 2026-08-28:
 
@@ -62,7 +62,7 @@ def test_an_empty_roster_loads_the_full_ruleset_unscoped():
 
 
 async def test_rules_resolve_from_postgres_when_the_file_is_absent(db_factory, tmp_path, monkeypatch):
-    """THE PRODUCTION CASE. No `series/` on the box; the rules must still reach the drafter."""
+    """THE PRODUCTION CASE. No `series/` in a deployment; the rules must still reach the drafter."""
     absent = tmp_path / "dialogue_rules.md"  # deliberately never written
     monkeypatch.setattr(settings, "dialogue_rules_path", str(absent))
 
@@ -72,7 +72,7 @@ async def test_rules_resolve_from_postgres_when_the_file_is_absent(db_factory, t
 
     async with db_factory() as s2:
         scoped = await load_dialogue_rules(s2, ["Marcus"])
-    assert scoped is not None, "the deploy box would draft dialogue with no rules"
+    assert scoped is not None, "a deployment would draft dialogue with no rules"
     assert "came from the DATABASE" in scoped
     assert "Serra is formal" not in scoped, "scoping still applies to the database copy"
 

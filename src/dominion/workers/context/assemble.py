@@ -37,7 +37,7 @@ async def assemble_context(session: AsyncSession, job: Job) -> SceneContext:
     # the effective POV's profile (resolve_job loads it that way), so the scene drafts in that voice.
     pov = effective_pov(beat, resolved.chapter)
     # Both style inputs resolve Postgres-first through the same loader: `series/` is gitignored, so a
-    # disk-only read is silently inert on the deploy box while working perfectly locally.
+    # disk-only read is silently inert in a deployed image while working perfectly locally.
     dialogue_rules = await load_dialogue_rules(session, [pov, *(beat.characters_present or [])])
     drift_source = await load_style_document(session, settings.forbidden_drift_path)
     drift = (
