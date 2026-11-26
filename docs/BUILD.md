@@ -53,9 +53,8 @@ docs/         DESIGN.md (spec), contract_first_drafting.md (drafting contract), 
 
 ## Running it
 
-The app ships as a **single container** (Next.js standalone + FastAPI), deployed as one service in the
-shared AWS box's Docker Compose stack (behind Caddy) — see
-[`DEPLOY.md`](DEPLOY.md). There is no separate local run target: the browser loads the desk from Next
+The app ships as a **single container** (Next.js standalone + FastAPI); there is currently no deploy
+target — see [`DEPLOY.md`](DEPLOY.md). There is no separate local run target: the browser loads the desk from Next
 and calls same-origin `/api/desk/*`, which the BFF proxies to FastAPI (no separate API host, no CORS).
 
 > Drafting is **contract-first** (see [`contract_first_drafting.md`](contract_first_drafting.md)):

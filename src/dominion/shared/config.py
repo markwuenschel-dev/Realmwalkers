@@ -25,7 +25,7 @@ def _to_asyncpg(v: str) -> str:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DOMINION_", env_file=_ENV_FILE, extra="ignore")
 
-    # The shared-box Compose stack injects DOMINION_DATABASE_URL (a private, internal-only host); a bare
+    # The deployment environment supplies DOMINION_DATABASE_URL; a bare
     # DATABASE_URL is also accepted. Normalize whatever scheme is given (postgres:// or postgresql://) to
     # the async driver the app actually connects with.
     database_url: str = Field(

@@ -23,7 +23,7 @@ RUN npm install -g @anthropic-ai/claude-code
 # --- 2) python + node runtime --------------------------------------------------------------------
 FROM python:3.14-slim AS app
 WORKDIR /app
-# Next serves the public $PORT (Compose sets PORT=3000 on the shared box); FastAPI runs on a distinct internal port so
+# Next serves the public $PORT; FastAPI runs on a distinct internal port so
 # the two never collide. API_BASE points the BFF at that internal port.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src \
@@ -57,7 +57,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 # NB: series/ and book1/ (the novel's creative content) are intentionally NOT in the image — gitignored
-# (never on GitHub) and never shipped to the box. The deployed app reads canon from Postgres (migrated
+# (never on GitHub) and never shipped in the image. The deployed app reads canon from Postgres (migrated
 # separately), not from these files; the file-backed doc/canon viewers and on-disk ingest/seed are
 # authoring-only and simply return empty in production. Do not re-add a COPY for them.
 

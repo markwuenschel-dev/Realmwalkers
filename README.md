@@ -15,7 +15,6 @@ from the Writers' Desk.
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Postgres](https://img.shields.io/badge/Postgres-+pgvector-4169E1?logo=postgresql&logoColor=white)
-![Deploy](https://img.shields.io/badge/deploy-AWS%20·%20Docker%20·%20Caddy-232F3E?logo=amazonaws&logoColor=white)
 
 <br />
 
@@ -44,8 +43,8 @@ Next.js (BFF) ──HTTP──> FastAPI ──> Postgres (+pgvector) <── Pyt
  Writers' Desk          thin boundary   source of truth        the ~minutes of real work
 ```
 
-The whole app ships as a **single container** (Next.js + FastAPI), deployed as one service in the
-shared AWS box's Docker Compose stack behind Caddy. The browser loads the desk from Next and calls
+The whole app ships as a **single container** (Next.js + FastAPI); there is currently no deploy target.
+The browser loads the desk from Next and calls
 same-origin `/api/desk/*`, which the Next BFF proxies to FastAPI — so there's no separate API host
 and no CORS. See [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
